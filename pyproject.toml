@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "rachel-ai"
+version = "0.1.0"
+description = "Script Collection for the Rachel AI project."
+authors = ["Tim Ullrich <[REDACTED_EMAIL]>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+openai = "^1.50.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
