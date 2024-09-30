@@ -73,3 +73,8 @@ If automatic installtion fails, install torch manually:
 pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 ```
 
+### Software needed on system
+
+```bash
+sudo apt install ffmpeg
+```
