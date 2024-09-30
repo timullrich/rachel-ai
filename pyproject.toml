@@ -10,6 +10,8 @@ package-mode = false
 python = "^3.8"
 openai = "^1.50.2"
 python-dotenv = "^1.0.1"
+torch = "2.2.2"
+openai-whisper = "^20240930"
 
 
 [build-system]
