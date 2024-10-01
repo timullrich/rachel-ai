@@ -127,7 +127,7 @@ def speak_reply(reply):
 
     with client.audio.speech.with_streaming_response.create(
             model="tts-1",
-            voice="alloy",
+            voice="nova",
             input=reply,
             response_format="pcm"
     ) as response:
