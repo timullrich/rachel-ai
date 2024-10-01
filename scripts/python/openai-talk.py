@@ -97,16 +97,26 @@ def delete_wav_file(filename):
     #     print(f"WAV file '{filename}' not found.")
 
 
-def chat_with_gpt(user_input):
-    """Chat with GPT using conversation history."""
+def stream_chat_with_gpt(user_input):
+    """Stream the response from GPT using conversation history."""
     conversation_history.append({"role": "user", "content": user_input})
 
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=conversation_history
+    # Stream the response
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=conversation_history,
+        stream=True  # Enable streaming
     )
 
-    assistant_reply = completion.choices[0].message.content
+    assistant_reply = ""
+    print("\nChatGPT is responding:\n")
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            content = chunk.choices[0].delta.content
+            sys.stdout.write(content)
+            sys.stdout.flush()
+            assistant_reply += content  # Build the full response
+
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
     return assistant_reply
@@ -153,12 +163,11 @@ if __name__ == "__main__":
             delete_wav_file(output_file)
             break
 
-        # Send the transcribed input to the chat_with_gpt function
-        reply = chat_with_gpt(user_input)
-        highlight_chatgpt_reply(reply)
+        # Stream the transcribed input to GPT and display the response in real-time
+        reply = stream_chat_with_gpt(user_input)
 
-        # Convert the reply to speech using OpenAI TTS
-        speak_reply(reply)
+        # Highlight the final response after streaming
+        highlight_chatgpt_reply(reply)
 
         # Delete the WAV file after transcription
         delete_wav_file(output_file)
