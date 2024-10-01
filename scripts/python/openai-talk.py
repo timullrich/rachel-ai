@@ -115,23 +115,48 @@ def highlight_chatgpt_reply(reply):
     """Highlight the reply from ChatGPT using a brighter style to simulate bold."""
     print(Fore.CYAN + Style.BRIGHT + "\nChatGPT: " + reply + Style.RESET_ALL)
 
-def play_audio_with_ffplay(file_path):
-    """Play the audio file using ffplay."""
-    subprocess.run(["ffplay", "-nodisp", "-autoexit", str(file_path)])
-
 def speak_reply(reply):
-    """Convert the ChatGPT reply to speech using OpenAI's Text-to-Speech API and play it."""
-    speech_file_path = Path(__file__).parent / "speech.mp3"
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice="nova",  # You can change the voice if needed
-        input=reply
-    )
-    response.stream_to_file(speech_file_path)
-    print(f"Speech saved as {speech_file_path}")
+    samplerate = 24000
+    chunk_size = 1024  # Original chunk size
+    buffer_size = 10  # collect chunks before playing.
+    audio_buffer = []
 
-    # Play the saved speech file using ffplay
-    play_audio_with_ffplay(speech_file_path)
+    # Open a sounddevice stream to continuously play audio
+    stream = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16')
+    stream.start()
+
+    with client.audio.speech.with_streaming_response.create(
+            model="tts-1",
+            voice="alloy",
+            input=reply,
+            response_format="pcm"
+    ) as response:
+        for chunk in response.iter_bytes(chunk_size):
+            # Convert the chunk to a NumPy array
+            audio_data = np.frombuffer(chunk, dtype=np.int16)
+
+            # Buffer the audio chunks
+            audio_buffer.append(audio_data)
+
+            # Wenn genügend Chunks gesammelt wurden, spiele sie ab
+            if len(audio_buffer) >= buffer_size:
+                complete_audio = np.concatenate(audio_buffer)
+
+                # Write directly to the stream without waiting
+                stream.write(complete_audio)
+
+                # Puffer leeren für den nächsten Block
+                audio_buffer = []
+
+        # Spiele verbleibende Audio-Chunks nach dem Empfang ab
+        if audio_buffer:
+            complete_audio = np.concatenate(audio_buffer)
+            stream.write(complete_audio)
+
+    # Schließe den Stream, wenn alles abgespielt wurde
+    stream.stop()
+    stream.close()
+
 
 if __name__ == "__main__":
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
