@@ -5,6 +5,8 @@ import webrtcvad
 import scipy.io.wavfile as wav
 import os
 import sys
+from pathlib import Path
+import subprocess
 from colorama import Fore, Style
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -32,17 +34,15 @@ conversation_history = []
 # Rotating spinner for visual feedback
 spinner = itertools.cycle(['-', '\\', '|', '/'])
 
-
 def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
     return vad.is_speech(frame.tobytes(), sample_rate)
-
 
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
     audio_frames = []
     silence_duration = 0
-    max_silence_duration = 1  # Stop recording after 1 seconds of silence
+    max_silence_duration = 1  # Stop recording after 1 second of silence
 
     stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
     stream.start()
@@ -72,7 +72,6 @@ def record_audio(sample_rate):
     audio = np.concatenate(audio_frames, axis=0)
     return audio
 
-
 def save_audio_to_wav(audio, sample_rate, filename=output_file):
     """Save the recorded audio to a WAV file."""
     wav.write(filename, sample_rate, audio)
@@ -88,7 +87,6 @@ def transcribe_audio(audio_file_path):
             file=audio_file
         )
         return transcription.text
-
 
 def delete_wav_file(filename):
     """Delete the file after transcription."""
@@ -113,12 +111,27 @@ def chat_with_gpt(user_input):
 
     return assistant_reply
 
-
 def highlight_chatgpt_reply(reply):
     """Highlight the reply from ChatGPT using a brighter style to simulate bold."""
     print(Fore.CYAN + Style.BRIGHT + "\nChatGPT: " + reply + Style.RESET_ALL)
 
+def play_audio_with_ffplay(file_path):
+    """Play the audio file using ffplay."""
+    subprocess.run(["ffplay", "-nodisp", "-autoexit", str(file_path)])
 
+def speak_reply(reply):
+    """Convert the ChatGPT reply to speech using OpenAI's Text-to-Speech API and play it."""
+    speech_file_path = Path(__file__).parent / "speech.mp3"
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",  # You can change the voice if needed
+        input=reply
+    )
+    response.stream_to_file(speech_file_path)
+    print(f"Speech saved as {speech_file_path}")
+
+    # Play the saved speech file using ffplay
+    play_audio_with_ffplay(speech_file_path)
 
 if __name__ == "__main__":
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
@@ -143,6 +156,9 @@ if __name__ == "__main__":
         # Send the transcribed input to the chat_with_gpt function
         reply = chat_with_gpt(user_input)
         highlight_chatgpt_reply(reply)
+
+        # Convert the reply to speech using OpenAI TTS
+        speak_reply(reply)
 
         # Delete the WAV file after transcription
         delete_wav_file(output_file)
