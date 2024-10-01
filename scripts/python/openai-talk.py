@@ -102,7 +102,7 @@ def chat_with_gpt(user_input):
     conversation_history.append({"role": "user", "content": user_input})
 
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=conversation_history
     )
 
@@ -124,7 +124,7 @@ def speak_reply(reply):
     speech_file_path = Path(__file__).parent / "speech.mp3"
     response = client.audio.speech.create(
         model="tts-1",
-        voice="alloy",  # You can change the voice if needed
+        voice="nova",  # You can change the voice if needed
         input=reply
     )
     response.stream_to_file(speech_file_path)
