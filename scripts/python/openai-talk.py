@@ -116,9 +116,9 @@ def highlight_chatgpt_reply(reply):
     print(Fore.CYAN + Style.BRIGHT + "\nChatGPT: " + reply + Style.RESET_ALL)
 
 def speak_reply(reply):
-    samplerate = 24000
+    samplerate = 24000  # Set the sample rate to match the response
     chunk_size = 1024  # Original chunk size
-    buffer_size = 10  # collect chunks before playing.
+    buffer_size = 50  # collect chunks before playing.
     audio_buffer = []
 
     # Open a sounddevice stream to continuously play audio
@@ -153,9 +153,9 @@ def speak_reply(reply):
             complete_audio = np.concatenate(audio_buffer)
             stream.write(complete_audio)
 
-    # Schließe den Stream, wenn alles abgespielt wurde
     stream.stop()
     stream.close()
+    sd.wait()
 
 
 if __name__ == "__main__":
