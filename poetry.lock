@@ -1443,6 +1443,19 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "webrtcvad"
+version = "2.0.10"
+description = "Python interface to the Google WebRTC Voice Activity Detector (VAD)"
+optional = false
+python-versions = "*"
+files = [
+    {file = "webrtcvad-2.0.10.tar.gz", hash = "sha256:f1bed2fb25b63fb7b1a55d64090c993c9c9167b28485ae0bcdd81cf6ede96aea"},
+]
+
+[package.extras]
+dev = ["check-manifest", "memory_profiler", "nose", "psutil", "unittest2", "zest.releaser"]
+
+[[package]]
 name = "zipp"
 version = "3.20.2"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -1464,4 +1477,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "71b4672217f4299ededf259947d90a60b78821d8ae0c2bfa75eb0fd763203d76"
+content-hash = "c7f504729edb831a5fa79253ee12025f24d5d623d5224376a0d7bb0fe163f51f"
