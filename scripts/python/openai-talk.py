@@ -6,6 +6,7 @@ import scipy.io.wavfile as wav
 import os
 import sys
 import queue
+import time
 import re
 import concurrent.futures
 import threading
@@ -53,6 +54,8 @@ def record_audio(sample_rate):
     stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
     stream.start()
 
+    start_time = time.time()  # Startzeit speichern
+
     try:
         while True:
             audio_frame, _ = stream.read(frame_size)
@@ -71,21 +74,31 @@ def record_audio(sample_rate):
                     print("Speech detected, starting recording...")
                     recording_started = True  # Start recording after speech is detected
 
+            # Check if 5 seconds have passed without starting the recording
+            if not recording_started and (time.time() - start_time) > 5:
+                print("No speech detected for 5 seconds, exiting...")
+                sys.exit()  # Exit the entire script
+
             else:
                 if recording_started:
-                    silence_duration += frame_duration_ms / 1000  # Count silence only after speech starts
+                    if silence_duration < max_silence_duration:
+                        silence_duration += frame_duration_ms / 1000  # Count silence only after speech starts
 
             # If too much silence is detected after recording started, stop recording
             if recording_started and silence_duration > max_silence_duration:
                 print("Silence detected, stopping recording.")
                 break
 
-    except KeyboardInterrupt:
-        print("\nRecording interrupted manually.")
+    finally:
+        stream.stop()
+        stream.close()
 
-    stream.stop()
-    audio = np.concatenate(audio_frames, axis=0)
-    return audio
+    # Convert audio_frames (list of arrays) to a single NumPy array
+    if audio_frames:
+        audio_array = np.concatenate(audio_frames, axis=0)
+        return audio_array  # Rückgabe als NumPy-Array
+    else:
+        return None  # Rückgabe None, wenn kein Audio aufgenommen wurde
 
 def save_audio_to_wav(audio, sample_rate, filename=output_file):
     """Save the recorded audio to a WAV file."""
