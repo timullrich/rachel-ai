@@ -20,7 +20,7 @@ model_path = os.path.join(script_dir, "../../resources/porcupine_params_de.pv")
 
 
 def start_chat():
-    script_to_start = os.path.join(script_dir, "openai-chat.py")
+    script_to_start = os.path.join(script_dir, "openai-talk.py")
     subprocess.run(["python3", script_to_start])
 
 def audio_callback(indata, frames, time, status):
