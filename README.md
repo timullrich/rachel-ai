@@ -13,6 +13,30 @@ Before setting up the project, make sure you have Poetry installed. You can inst
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
+
+### Sysytem dependencies
+
+Please install:
+
+#### Debian Systems (e. G. Ubuntu, Raspbian):
+
+```bash
+sudo apt-get update
+sudo apt-get install python3-dev portaudio19-dev
+```
+
+#### Description:
+- **`python3-dev`**: Contains the header files and development libraries required to compile native Python extensions.
+- **`portaudio19-dev`**: Contains the libraries and header files for **PortAudio**, which are required by the `sounddevice` library to handle audio input and output.
+
+After these dependencies are installed, you can set up the project as usual with `poetry install`.”:
+
+```bash
+poetry install
+```
+
+Falls du auf weitere Probleme stößt, prüfe bitte die Fehlermeldungen und stelle sicher, dass alle benötigten Systembibliotheken installiert sind.
+
 ### How to Use
 
 1. **Clone the repository**:
