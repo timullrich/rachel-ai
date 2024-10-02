@@ -5,6 +5,10 @@ import webrtcvad
 import scipy.io.wavfile as wav
 import os
 import sys
+import queue
+import re
+import concurrent.futures
+import threading
 from pathlib import Path
 import subprocess
 from colorama import Fore, Style
@@ -97,19 +101,137 @@ def delete_wav_file(filename):
     #     print(f"WAV file '{filename}' not found.")
 
 
-def chat_with_gpt(user_input):
-    """Chat with GPT using conversation history."""
+def stream_chat_with_gpt(user_input):
+    """Stream the response from GPT using conversation history."""
     conversation_history.append({"role": "user", "content": user_input})
 
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=conversation_history
+    # Stream the response
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=conversation_history,
+        stream=True  # Enable streaming
     )
 
-    assistant_reply = completion.choices[0].message.content
+    assistant_reply = ""
+    print("\nChatGPT is responding:\n")
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            content = chunk.choices[0].delta.content
+            sys.stdout.write(content)
+            sys.stdout.flush()
+            assistant_reply += content  # Build the full response
+
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
     return assistant_reply
+
+
+
+
+
+
+def stream_chat_with_gpt_and_speak(user_input):
+    """Stream the GPT response and speak it in real-time."""
+    conversation_history.append({"role": "user", "content": user_input})
+
+    # Stream the response from GPT
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=conversation_history,
+        stream=True  # Enable streaming
+    )
+
+    assistant_reply = ""
+    print("\nChatGPT is responding:\n")
+    text_buffer = ""  # Buffer to collect chunks of text for speaking
+    buffer_limit = 50  # Set a reasonable buffer limit (can be adjusted)
+
+    samplerate = 24000  # Set the sample rate for speech output
+    chunk_size = 1024
+
+    # Queue to hold audio chunks
+    audio_queue = queue.Queue()
+
+    # Lock to ensure correct order of transcription
+    transcription_lock = threading.Lock()
+
+    # Start the output audio stream for speech
+    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=4096, latency='high')
+    stream_audio.start()
+
+    def process_speech(text):
+        """Converts text to speech and stores audio chunks in the queue."""
+        with transcription_lock:
+            with client.audio.speech.with_streaming_response.create(
+                    model="tts-1",
+                    voice="nova",
+                    input=text,
+                    response_format="pcm"
+            ) as response_audio:
+                for audio_chunk in response_audio.iter_bytes(chunk_size):
+                    audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
+                    audio_queue.put(audio_data)  # Store audio in the queue
+
+    def play_audio():
+        """Continuously play audio from the queue."""
+        while True:
+            audio_data = audio_queue.get()  # Blocking until an item is available
+            if audio_data is None:  # End signal
+                break
+            stream_audio.write(audio_data)  # Write audio data to the stream
+
+    # Start a thread to play audio continuously
+    audio_thread = threading.Thread(target=play_audio)
+    audio_thread.start()
+
+    def collect_until_sentence_end(text_buffer):
+        """Collect text until a sentence end is detected (., !, ?)."""
+        match = re.search(r'[.!?]', text_buffer)   # Look for sentence-ending punctuation
+        if match:
+            return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
+        return "", text_buffer
+
+    # Use a thread pool to process speech in the background
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = None
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+                sys.stdout.write(content)
+                sys.stdout.flush()
+                assistant_reply += content
+                text_buffer += content
+
+                # Check if the sentence ends to process the text
+                sentence, remaining_text = collect_until_sentence_end(text_buffer)
+                if sentence:
+                    future = executor.submit(process_speech, sentence)
+                    text_buffer = remaining_text  # Keep the leftover text for the next round
+
+        # Process remaining text if any (even if it's not a complete sentence)
+        if text_buffer:
+            future = executor.submit(process_speech, text_buffer)
+
+        # Wait for the speech processing to finish
+        if future:
+            future.result()
+
+    # Signal the end of the stream
+    audio_queue.put(None)
+
+    # Wait for the audio thread to finish
+    audio_thread.join()
+
+    # Stop and close the audio stream
+    stream_audio.stop()
+    stream_audio.close()
+    sd.wait()
+
+    # Add final assistant reply to conversation history
+    conversation_history.append({"role": "assistant", "content": assistant_reply})
+
+    return assistant_reply
+
 
 def highlight_chatgpt_reply(reply):
     """Highlight the reply from ChatGPT using a brighter style to simulate bold."""
@@ -178,12 +300,11 @@ if __name__ == "__main__":
             delete_wav_file(output_file)
             break
 
-        # Send the transcribed input to the chat_with_gpt function
-        reply = chat_with_gpt(user_input)
-        highlight_chatgpt_reply(reply)
+        # Stream the transcribed input to GPT and speak it in real-time
+        reply = stream_chat_with_gpt_and_speak(user_input)
 
-        # Convert the reply to speech using OpenAI TTS
-        speak_reply(reply)
+        # Highlight the final response after streaming
+        highlight_chatgpt_reply(reply)
 
         # Delete the WAV file after transcription
         delete_wav_file(output_file)
