@@ -6,7 +6,7 @@ import scipy.io.wavfile as wav
 import os
 import sys
 import queue
-import time
+import re
 import concurrent.futures
 import threading
 from pathlib import Path
@@ -128,6 +128,8 @@ def stream_chat_with_gpt(user_input):
 
 
 
+
+
 def stream_chat_with_gpt_and_speak(user_input):
     """Stream the GPT response and speak it in real-time."""
     conversation_history.append({"role": "user", "content": user_input})
@@ -142,7 +144,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     assistant_reply = ""
     print("\nChatGPT is responding:\n")
     text_buffer = ""  # Buffer to collect chunks of text for speaking
-    buffer_limit = 50  # Number of characters to collect before speaking
+    buffer_limit = 50  # Set a reasonable buffer limit (can be adjusted)
 
     samplerate = 24000  # Set the sample rate for speech output
     chunk_size = 1024
@@ -182,6 +184,13 @@ def stream_chat_with_gpt_and_speak(user_input):
     audio_thread = threading.Thread(target=play_audio)
     audio_thread.start()
 
+    def collect_until_sentence_end(text_buffer):
+        """Collect text until a sentence end is detected (., !, ?)."""
+        match = re.search(r'[.!?]', text_buffer)   # Look for sentence-ending punctuation
+        if match:
+            return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
+        return "", text_buffer
+
     # Use a thread pool to process speech in the background
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = None
@@ -193,12 +202,13 @@ def stream_chat_with_gpt_and_speak(user_input):
                 assistant_reply += content
                 text_buffer += content
 
-                # When buffer limit is reached, start processing text to speech in the background
-                if len(text_buffer) >= buffer_limit:
-                    future = executor.submit(process_speech, text_buffer)
-                    text_buffer = ""
+                # Check if the sentence ends to process the text
+                sentence, remaining_text = collect_until_sentence_end(text_buffer)
+                if sentence:
+                    future = executor.submit(process_speech, sentence)
+                    text_buffer = remaining_text  # Keep the leftover text for the next round
 
-        # Process remaining text if any
+        # Process remaining text if any (even if it's not a complete sentence)
         if text_buffer:
             future = executor.submit(process_speech, text_buffer)
 
