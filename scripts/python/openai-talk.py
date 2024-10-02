@@ -42,11 +42,13 @@ def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
     return vad.is_speech(frame.tobytes(), sample_rate)
 
+
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
     audio_frames = []
     silence_duration = 0
     max_silence_duration = 1  # Stop recording after 1 second of silence
+    recording_started = False  # Track if recording has started after speech detection
 
     stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
     stream.start()
@@ -55,20 +57,29 @@ def record_audio(sample_rate):
         while True:
             audio_frame, _ = stream.read(frame_size)
             audio_frames.append(audio_frame)
+
             # Display a rotating spinner
             sys.stdout.write(next(spinner))  # Show the next spinner character
             sys.stdout.flush()
             sys.stdout.write('\b')  # Erase the last character printed
 
+            # Check if speech is detected
             if is_speech(audio_frame, sample_rate):
                 silence_duration = 0  # Reset silence duration if speech detected
-            else:
-                silence_duration += frame_duration_ms / 1000  # Count silence
 
-            # If there's too much silence, stop recording
-            if silence_duration > max_silence_duration:
-                #print("\nSilence detected, stopping recording.")
+                if not recording_started:
+                    print("Speech detected, starting recording...")
+                    recording_started = True  # Start recording after speech is detected
+
+            else:
+                if recording_started:
+                    silence_duration += frame_duration_ms / 1000  # Count silence only after speech starts
+
+            # If too much silence is detected after recording started, stop recording
+            if recording_started and silence_duration > max_silence_duration:
+                print("Silence detected, stopping recording.")
                 break
+
     except KeyboardInterrupt:
         print("\nRecording interrupted manually.")
 
