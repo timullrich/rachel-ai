@@ -24,7 +24,7 @@ client = OpenAI(api_key=openai_api_key)
 
 # Initialize VAD
 vad = webrtcvad.Vad()
-vad.set_mode(1)  # 0 = aggressive, 3 = least aggressive
+vad.set_mode(3)  # 0 = aggressive, 3 = least aggressive
 
 # Recording parameters
 sample_rate = 16000  # Standard sample rate for Whisper
