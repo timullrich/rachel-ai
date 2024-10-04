@@ -206,6 +206,11 @@ def stream_chat_with_gpt_and_speak(user_input):
                 break
             stream_audio.write(audio_data)  # Write audio data to the stream
 
+        # Sicherstellen, dass alle Audio-Chunks aus der Queue entnommen werden
+        while not audio_queue.empty():
+            audio_data = audio_queue.get()
+            if audio_data is not None:
+                stream_audio.write(audio_data)
 
     # Start a thread to play audio continuously
     audio_thread = threading.Thread(target=play_audio)
