@@ -75,8 +75,8 @@ def record_audio(sample_rate):
                     recording_started = True  # Start recording after speech is detected
 
             # Check if 5 seconds have passed without starting the recording
-            if not recording_started and (time.time() - start_time) > 5:
-                print("No speech detected for 5 seconds, exiting...")
+            if not recording_started and (time.time() - start_time) > 3:
+                print("No speech detected for 3 seconds, exiting...")
                 sys.exit()  # Exit the entire script
 
             else:
@@ -304,10 +304,51 @@ def speak_reply(reply):
     sd.wait()
 
 
+def play_ready_tone(frequency=440, duration=0.5, sample_rate=44100, fade_duration=0.05):
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+
+    # Erzeuge eine Kombination aus zwei Frequenzen für einen angenehmeren Klang
+    tone1 = np.sin(2 * np.pi * frequency * t)
+    tone2 = np.sin(2 * np.pi * (frequency * 1.5) * t)
+
+    # Kombiniere die beiden Töne
+    tone = (tone1 + tone2) * 0.5
+
+    # Ein- und Ausblenden (Fade-In und Fade-Out)
+    fade_in = np.linspace(0, 1, int(sample_rate * fade_duration))
+    fade_out = np.linspace(1, 0, int(sample_rate * fade_duration))
+    tone[:len(fade_in)] *= fade_in
+    tone[-len(fade_out):] *= fade_out
+
+    sd.play(tone, samplerate=sample_rate)
+    sd.wait()
+
+def play_shutdown_tone(frequency=220, duration=1.0, sample_rate=44100, fade_duration=0.3):
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+
+    # Erzeuge eine Kombination aus zwei Frequenzen für einen tieferen Klang
+    tone1 = np.sin(2 * np.pi * frequency * t)
+    tone2 = np.sin(2 * np.pi * (frequency * 0.75) * t)
+
+    # Kombiniere die beiden Töne für einen tieferen und harmonischen Sound
+    tone = (tone1 + tone2) * 0.5
+
+    # Ein- und besonders langes Ausblenden (Fade-In und langes Fade-Out)
+    fade_in = np.linspace(0, 1, int(sample_rate * fade_duration))
+    fade_out = np.linspace(1, 0, int(sample_rate * fade_duration * 2))  # Längeres Fade-Out
+    tone[:len(fade_in)] *= fade_in
+    tone[-len(fade_out):] *= fade_out
+
+    sd.play(tone, samplerate=sample_rate)
+    sd.wait()  # Warte, bis der Ton fertig abgespielt ist
+
+
 if __name__ == "__main__":
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
     print("Welcome to the OpenAI Audio Chat! Say 'exit' or 'quit' to end the conversation.")
+
+    play_ready_tone()
 
     while True:
         # Dynamically record audio until silence is detected
@@ -319,9 +360,10 @@ if __name__ == "__main__":
         print(f"You: {user_input}")
 
         # Exit the loop if the user says 'exit' or 'quit'
-        if user_input.lower() in ['exit', 'quit']:
+        if user_input.lower() in ['exit', 'quit', "halt's maul, rachel!", 'fresse', 'bey.', 'fresse!']:
             print("Goodbye!")
             delete_wav_file(output_file)
+            play_shutdown_tone()
             break
 
         # Stream the transcribed input to GPT and speak it in real-time
