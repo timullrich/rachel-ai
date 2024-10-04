@@ -180,7 +180,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     transcription_lock = threading.Lock()
 
     # Start the output audio stream for speech
-    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=16384,
+    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=32768,
                                    latency='low')
     stream_audio.start()
 
