@@ -171,7 +171,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     buffer_limit = 50  # Set a reasonable buffer limit (can be adjusted)
 
     samplerate = 24000  # Set the sample rate for speech output
-    chunk_size = 1024
+    chunk_size = 2048
 
     # Queue to hold audio chunks
     audio_queue = queue.Queue()
