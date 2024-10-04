@@ -8,15 +8,16 @@ import subprocess
 # Load environment variables from .env file
 load_dotenv()
 
-# Add your Access Key here
+platform = os.getenv("PLATFORM")
 access_key = os.getenv("PORCUPINE_ACCESS_KEY")
 
 
 # Dynamically get the absolute path to the PPN file
 script_dir = os.path.dirname(os.path.realpath(__file__))
 # Paths to the PPN and PV files
-keyword_path = os.path.join(script_dir, "../../resources/rachel_wake_word.ppn")
-model_path = os.path.join(script_dir, "../../resources/porcupine_params_de.pv")
+keyword_path = os.path.join(script_dir,
+                            f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn")
+model_path = os.path.join(script_dir, "../../resources/porcupine/porcupine_params_de.pv")
 
 
 def start_chat():
