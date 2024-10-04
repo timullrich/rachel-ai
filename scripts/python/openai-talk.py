@@ -171,7 +171,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     buffer_limit = 50  # Set a reasonable buffer limit (can be adjusted)
 
     samplerate = 24000  # Set the sample rate for speech output
-    chunk_size = 2048
+    chunk_size = 1024
 
     # Queue to hold audio chunks
     audio_queue = queue.Queue()
@@ -180,7 +180,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     transcription_lock = threading.Lock()
 
     # Start the output audio stream for speech
-    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=32768,
+    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=8192,
                                    latency='low')
     stream_audio.start()
 
