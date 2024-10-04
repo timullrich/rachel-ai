@@ -370,7 +370,6 @@ if __name__ == "__main__":
         # Stream the transcribed input to GPT and speak it in real-time
         reply = stream_chat_with_gpt_and_speak(user_input)
 
-
         # Highlight the final response after streaming
         highlight_chatgpt_reply(reply)
 
