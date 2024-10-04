@@ -184,6 +184,7 @@ def stream_chat_with_gpt_and_speak(user_input):
     stream_audio.start()
 
     def process_speech(text):
+        print('\nprocess speech: ' + text + '\n')
         """Converts text to speech and stores audio chunks in the queue."""
         with transcription_lock:
             with client.audio.speech.with_streaming_response.create(
@@ -368,6 +369,7 @@ if __name__ == "__main__":
 
         # Stream the transcribed input to GPT and speak it in real-time
         reply = stream_chat_with_gpt_and_speak(user_input)
+
 
         # Highlight the final response after streaming
         highlight_chatgpt_reply(reply)
