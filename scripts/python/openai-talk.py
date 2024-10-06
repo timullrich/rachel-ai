@@ -181,7 +181,7 @@ def play_sound(file_path):
             stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
             check=True
         )
-        time.sleep(0.2)
+        time.sleep(0.5)
     except subprocess.CalledProcessError as e:
         print(f"Error while playing sound: {e}")
 
