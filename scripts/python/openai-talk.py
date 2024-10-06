@@ -51,6 +51,9 @@ def is_speech(frame, sample_rate):
 
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
+
+    play_sound(os.path.join(script_dir, "../../resources/sounds/listening.wav"))
+
     audio_frames = []
     silence_duration = 0
     max_silence_duration = 1  # Stop recording after 1 second of silence
@@ -60,8 +63,6 @@ def record_audio(sample_rate):
     stream.start()
 
     start_time = time.time()
-
-    play_sound(os.path.join(script_dir, "../../resources/sounds/listening.wav"))
 
     try:
         while True:
@@ -154,6 +155,7 @@ def play_audio(samplerate=24000, channels=1):
 
     stream_audio.stop()
     stream_audio.close()
+    sd.wait()
     sd.wait()
 
 def collect_until_sentence_end(text_buffer):
