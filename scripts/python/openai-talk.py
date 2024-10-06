@@ -24,6 +24,11 @@ platform = os.getenv("PLATFORM")
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
+audio_queue = queue.Queue()
+transcription_lock = threading.Lock()
+
 # Initialize VAD
 vad = webrtcvad.Vad()
 vad.set_mode(3)  # 0 = aggressive, 3 = least aggressive
@@ -56,9 +61,7 @@ def record_audio(sample_rate):
 
     start_time = time.time()
 
-    print('\nstart listening')
-    play_sound(os.path.join(script_dir, "../../resources/sounds/ready.mp3"))
-
+    play_sound(os.path.join(script_dir, "../../resources/sounds/listening.wav"))
 
     try:
         while True:
@@ -124,122 +127,53 @@ def delete_wav_file(filename):
     if os.path.exists(filename):
         os.remove(filename)
 
+def process_speech(client, text, chunk_size=1024):
+    """Converts text to speech and stores audio chunks in the queue."""
+    with transcription_lock:
+        with client.audio.speech.with_streaming_response.create(
+                model="tts-1",
+                voice="nova",
+                input=text,
+                response_format="pcm"
+        ) as response_audio:
+            for audio_chunk in response_audio.iter_bytes(chunk_size):
+                audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
+                audio_queue.put(audio_data)  # Store audio in the queue
 
-def stream_chat_with_gpt_and_speak(user_input):
-    """Stream the GPT response and speak it in real-time."""
-    samplerate = 24000
-    chunk_size = 1024
-    assistant_reply = ""
-    text_buffer = ""
-    audio_queue = queue.Queue()
-
-    def process_speech(text):
-        """Converts text to speech and stores audio chunks in the queue."""
-        with transcription_lock:
-            with client.audio.speech.with_streaming_response.create(
-                    model="tts-1",
-                    voice="nova",
-                    input=text,
-                    response_format="pcm"
-            ) as response_audio:
-                for audio_chunk in response_audio.iter_bytes(chunk_size):
-                    audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
-                    audio_queue.put(audio_data)  # Store audio in the queue
-
-    def play_audio():
-        """Continuously play audio from the queue."""
-        while True:
-            audio_data = audio_queue.get()  # Blocking until an item is available
-            if audio_data is None:  # End signal
-                break
-            stream_audio.write(audio_data)  # Write audio data to the stream
-
-    def collect_until_sentence_end(text_buffer):
-        """Collect text until a sentence end is detected (., !, ?)."""
-        match = re.search(r'[.!?]', text_buffer)   # Look for sentence-ending punctuation
-        if match:
-            return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
-        return "", text_buffer
-
-    conversation_history.append({"role": "user", "content": user_input})
-
-    # Lock to ensure correct order of transcription
-    transcription_lock = threading.Lock()
-
-    # Stream the response from GPT
-    stream = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation_history,
-        stream=True  # Enable streaming
-    )
-
-    # Start the output audio stream for speech
-    stream_audio = sd.OutputStream(
-        samplerate=samplerate,
-        channels=1,
-        dtype='int16',
-        blocksize=4096,
-        latency=0.5
-    )
-
+def play_audio(samplerate=24000, channels=1):
+    """Continuously play audio from the queue."""
+    stream_audio = sd.OutputStream(samplerate=samplerate, channels=channels, dtype='int16',
+                                   blocksize=4096, latency=0.5)
     stream_audio.start()
 
-    # Start a thread to play audio continuously
-    audio_thread = threading.Thread(target=play_audio)
-    audio_thread.start()
+    while True:
+        audio_data = audio_queue.get()  # Blocking until an item is available
+        if audio_data is None:  # End signal
+            break
+        stream_audio.write(audio_data)  # Write audio data to the stream
 
-    # Use a thread pool to process speech in the background
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = None
-        for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
-                sys.stdout.write(content)
-                sys.stdout.flush()
-                assistant_reply += content
-                text_buffer += content
-
-                # Check if the sentence ends to process the text
-                sentence, remaining_text = collect_until_sentence_end(text_buffer)
-                if sentence:
-                    future = executor.submit(process_speech, sentence)
-                    text_buffer = remaining_text  # Keep the leftover text for the next round
-
-        # Process remaining text if any (even if it's not a complete sentence)
-        if text_buffer:
-            future = executor.submit(process_speech, text_buffer)
-
-        # Wait for the speech processing to finish
-        if future:
-            future.result()
-
-    # Signal the end of the stream
-    audio_queue.put(None)
-
-    # Check if the queue is empty (optional)
-    while not audio_queue.empty():
-        time.sleep(1.5)
-
-    # Wait for the audio thread to finish
-    audio_thread.join()
-
-    # Stop and close the audio stream
     stream_audio.stop()
     stream_audio.close()
     sd.wait()
 
-    # Add final assistant reply to conversation history
-    conversation_history.append({"role": "assistant", "content": assistant_reply})
+def collect_until_sentence_end(text_buffer):
+    """Collect text until a sentence end is detected (., !, ?)."""
+    match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
+    if match:
+        return text_buffer[:match.end()], text_buffer[
+                                          match.end():]  # Return the sentence and the remaining text
+    return "", text_buffer
 
-    return assistant_reply
+def format_and_print_content(content):
+    """Formats content for console output."""
+    formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
+    sys.stdout.write(formatted_content)
+    sys.stdout.flush()
 
 def play_sound(file_path):
-    # Überprüfen, ob die Datei existiert
     if not os.path.isfile(file_path):
         print(f"File {file_path} not found!")
         return
-
-    # Führe ffmpeg aus, um die Datei abzuspielen, ohne Konsolenausgabe
     try:
         subprocess.run(
             ['ffplay', '-nodisp', '-autoexit', file_path],
@@ -251,8 +185,7 @@ def play_sound(file_path):
     except subprocess.CalledProcessError as e:
         print(f"Error while playing sound: {e}")
 
-
-def speak_reply(reply):
+def speak(text):
     samplerate = 24000  # Set the sample rate to match the response
     chunk_size = 1024  # Original chunk size
     buffer_size = 100  # Collect chunks before playing
@@ -264,7 +197,7 @@ def speak_reply(reply):
         with client.audio.speech.with_streaming_response.create(
                 model="tts-1",
                 voice="nova",
-                input=reply,
+                input=text,
                 response_format="pcm"
         ) as response:
             for chunk in response.iter_bytes(chunk_size):
@@ -274,14 +207,14 @@ def speak_reply(reply):
                 # Buffer the audio chunks
                 audio_buffer.append(audio_data)
 
-                # Wenn genügend Chunks gesammelt wurden, spiele sie ab
+                # if collected enough chunks, start playing
                 if len(audio_buffer) >= buffer_size:
                     complete_audio = np.concatenate(audio_buffer)
 
                     # Write directly to the stream without waiting
                     stream.write(complete_audio)
 
-                    # Puffer leeren für den nächsten Block
+                    # clear buffer for the next block
                     audio_buffer = []
 
             # Spiele verbleibende Audio-Chunks nach dem Empfang ab
@@ -292,30 +225,77 @@ def speak_reply(reply):
         # Wait a short moment to ensure all data is played before closing the stream
         sd.sleep(500)
 
+def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chunk_size=1024):
+    """Stream the GPT response and speak it in real-time."""
+    assistant_reply = ""
+    text_buffer = ""
+
+    # Play audio in a separate thread
+    audio_thread = threading.Thread(target=play_audio)
+    audio_thread.start()
+
+    conversation_history.append({"role": "user", "content": user_input})
+
+    # Stream the response from GPT
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=conversation_history,
+        stream=True  # Enable streaming
+    )
+
+    # Use a thread pool to process speech in the background
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = None
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                content = chunk.choices[0].delta.content
+
+                # Format and print the content
+                format_and_print_content(content)
+
+                assistant_reply += content
+                text_buffer += content
+
+                # Check if the sentence ends to process the text
+                sentence, remaining_text = collect_until_sentence_end(text_buffer)
+                if sentence:
+                    future = executor.submit(process_speech, client, sentence, chunk_size)
+                    text_buffer = remaining_text  # Keep the leftover text for the next round
+
+        print("\n")
+
+        # Process remaining text if any (even if it's not a complete sentence)
+        if text_buffer:
+            future = executor.submit(process_speech, client, text_buffer, chunk_size)
+
+        # Wait for the speech processing to finish
+        if future:
+            future.result()
+
+    # Signal the end of the stream
+    audio_queue.put(None)
+
+    # Wait for the audio thread to finish
+    audio_thread.join()
+
+    # Add final assistant reply to conversation history
+    conversation_history.append({"role": "assistant", "content": assistant_reply})
+
+    return assistant_reply
+
 if __name__ == "__main__":
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-
     while True:
         # Dynamically record audio until silence is detected
-        time.sleep(1)
         audio = record_audio(sample_rate)
         save_audio_to_wav(audio, sample_rate)
 
         # Transcribe the saved audio file using OpenAI API
         user_input = transcribe_audio(output_file)
         print(f"You: {user_input}")
-
-        # Exit the loop if the user says 'exit' or 'quit'
-        if user_input.lower() in ['exit', 'quit', "halt's maul, rachel!", 'fresse', 'bey.', 'fresse!']:
-            print("Goodbye!")
-            delete_wav_file(output_file)
-            play_sound(os.path.join(script_dir, "../../resources/sounds/standby.wav"))
-            break
-
-        # Stream the transcribed input to GPT and speak it in real-time
-        reply = stream_chat_with_gpt_and_speak(user_input)
-
         # Delete the WAV file after transcription
         delete_wav_file(output_file)
+
+        # Stream the transcribed input to GPT and speak it in real-time
+        reply = stream_chat_with_gpt_and_speak(client, user_input, conversation_history)
