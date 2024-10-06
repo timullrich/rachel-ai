@@ -141,17 +141,18 @@ def delete_wav_file(filename):
 
 
 def process_speech(client, text, chunk_size=1024):
-    """Converts text to speech and stores audio chunks in the queue."""
-    with transcription_lock:
-        with client.audio.speech.with_streaming_response.create(
-                model="tts-1",
-                voice="nova",
-                input=text,
-                response_format="pcm"
-        ) as response_audio:
-            for audio_chunk in response_audio.iter_bytes(chunk_size):
-                audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
-                audio_queue.put(audio_data)  # Store audio in the queue
+    if not stop_flag.is_set():
+        """Converts text to speech and stores audio chunks in the queue."""
+        with transcription_lock:
+            with client.audio.speech.with_streaming_response.create(
+                    model="tts-1",
+                    voice="nova",
+                    input=text,
+                    response_format="pcm"
+            ) as response_audio:
+                for audio_chunk in response_audio.iter_bytes(chunk_size):
+                    audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
+                    audio_queue.put(audio_data)  # Store audio in the queue
 
 
 def play_audio(samplerate=24000, channels=1):
@@ -161,14 +162,29 @@ def play_audio(samplerate=24000, channels=1):
     stream_audio.start()
 
     while True:
-        audio_data = audio_queue.get()  # Blocking until an item is available
+        # Überprüfe das Stop-Flag
+        if stop_flag.is_set():
+            print("Stopping audio playback due to wakeword detection")
+            break  # Beende die Schleife, wenn das Stop-Flag gesetzt ist
+
+        try:
+            audio_data = audio_queue.get(timeout=1)  # Timeout, damit die Schleife nicht ewig wartet
+        except queue.Empty:
+            continue  # Gehe zur nächsten Iteration, wenn die Queue leer ist
+
         if audio_data is None:  # End signal
             break
+
         stream_audio.write(audio_data)  # Write audio data to the stream
 
+    # Stoppe und schließe den Audio-Stream
     stream_audio.stop()
     stream_audio.close()
-    sd.wait()
+    #sd.wait()
+
+    # Leere die Audio-Queue, um sicherzustellen, dass keine weiteren Chunks abgespielt werden
+    with audio_queue.mutex:
+        audio_queue.queue.clear()
 
 
 def collect_until_sentence_end(text_buffer):
@@ -214,6 +230,7 @@ def audio_callback(indata, frames, time, status):
 
 
 def listen_for_wakeword():
+    print("listen for wakeword")
     """Listens for the wakeword in a separate thread."""
     global porcupine
     porcupine = None
@@ -224,9 +241,10 @@ def listen_for_wakeword():
             model_path=model_path
         )
 
-        with sd.InputStream(samplerate=porcupine.sample_rate, channels=1, callback=audio_callback,
-                            blocksize=porcupine.frame_length):
-            print("Listening for Stop Wake Word...")
+        with sd.InputStream(samplerate=porcupine.sample_rate, channels=1, callback=audio_callback, blocksize=porcupine.frame_length):
+            print("Listening for 'Hey Rachel'...")
+            while not stop_flag.is_set():
+                sd.sleep(1000)
 
 
     finally:
@@ -280,13 +298,13 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
     assistant_reply = ""
     text_buffer = ""
 
-    # Play audio in a separate thread
-    audio_thread = threading.Thread(target=play_audio)
-    audio_thread.start()
-
     # Start the wake-word detection in a separate thread
     wakeword_thread = threading.Thread(target=listen_for_wakeword)
     wakeword_thread.start()
+
+    # Play audio in a separate thread
+    audio_thread = threading.Thread(target=play_audio)
+    audio_thread.start()
 
     conversation_history.append({"role": "user", "content": user_input})
 
@@ -297,38 +315,56 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
         stream=True  # Enable streaming
     )
 
-    # Use a thread pool to process speech in the background
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = None
-        for chunk in stream:
-            if stop_flag.is_set():  # If wake-word detected, stop
-                print("Stopping due to wakeword detection")
-                break
+        try:
+            for chunk in stream:
+                if stop_flag.is_set():  # Wenn Wakeword erkannt wird
+                    print("Stopping due to wakeword detection")
+                    text_buffer = False
+                    executor.shutdown(wait=False)
+                    break  # Beenden der Schleife und des Streams
 
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
+                if chunk.choices[0].delta.content is not None:
+                    content = chunk.choices[0].delta.content
+                    format_and_print_content(content)
 
-                # Format and print the content
-                format_and_print_content(content)
+                    assistant_reply += content
+                    text_buffer += content
 
-                assistant_reply += content
-                text_buffer += content
+                    # Überprüfe, ob der Satz endet und sende diesen zur Verarbeitung
+                    sentence, remaining_text = collect_until_sentence_end(text_buffer)
+                    if sentence and not stop_flag.is_set():
+                        future = executor.submit(process_speech, client, sentence, chunk_size)
+                        text_buffer = remaining_text  # Resttext für nächste Runde behalten
 
-                # Check if the sentence ends to process the text
-                sentence, remaining_text = collect_until_sentence_end(text_buffer)
-                if sentence:
-                    future = executor.submit(process_speech, client, sentence, chunk_size)
-                    text_buffer = remaining_text  # Keep the leftover text for the next round
+            print("\n for end")
 
-        print("\n")
+            if stop_flag.is_set():
+                print("hier?")
+                executor.shutdown(wait=False)
 
-        # Process remaining text if any (even if it's not a complete sentence)
-        if text_buffer:
-            future = executor.submit(process_speech, client, text_buffer, chunk_size)
+            if future and not stop_flag.is_set():
+                future.result()  # Warte auf das Ergebnis des letzten Tasks
 
-        # Wait for the speech processing to finish
-        if future:
-            future.result()
+            print("hier2")
+
+        except Exception as e:
+            print(f"Error encountered: {e}")
+
+        finally:
+            print("finally")
+            if stop_flag.is_set():
+                stream.close()
+                # Executor herunterfahren, falls Stop-Flag gesetzt wurde
+                text_buffer = False
+                if future and not future.done():
+                    future.cancel()
+                executor.shutdown(wait=False)
+                print("Executor shut down due to stop flag")
+
+
+    print("raus aus dem with")
 
     # Signal the end of the stream
     audio_queue.put(None)
@@ -339,9 +375,13 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
     # Wait for the wake-word thread to finish
     wakeword_thread.join()
 
+    # Reset the stop_flag so the script can listen again
+    stop_flag.clear()
+
     # Add final assistant reply to conversation history
     conversation_history.append({"role": "assistant", "content": assistant_reply})
-
+    print("assistant reply: ")
+    print(assistant_reply)
     return assistant_reply
 
 
