@@ -10,7 +10,6 @@ import time
 import re
 import concurrent.futures
 import threading
-from pathlib import Path
 import subprocess
 from colorama import Fore, Style
 from openai import OpenAI
@@ -18,6 +17,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+platform = os.getenv("PLATFORM")
 
 # Initialize OpenAI client
 openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -43,7 +44,6 @@ def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
     return vad.is_speech(frame.tobytes(), sample_rate)
 
-
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
     audio_frames = []
@@ -54,7 +54,11 @@ def record_audio(sample_rate):
     stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
     stream.start()
 
-    start_time = time.time()  # Startzeit speichern
+    start_time = time.time()
+
+    print('\nstart listening')
+    play_sound(os.path.join(script_dir, "../../resources/sounds/ready.mp3"))
+
 
     try:
         while True:
@@ -75,8 +79,10 @@ def record_audio(sample_rate):
                     recording_started = True  # Start recording after speech is detected
 
             # Check if 5 seconds have passed without starting the recording
-            if not recording_started and (time.time() - start_time) > 3:
-                print("No speech detected for 3 seconds, exiting...")
+            if not recording_started and (time.time() - start_time) > 4:
+                print("No speech detected for 4 seconds, exiting...")
+                play_sound(
+                os.path.join(script_dir, "../../resources/sounds/standby.wav"))
                 sys.exit()  # Exit the entire script
 
             else:
@@ -103,13 +109,11 @@ def record_audio(sample_rate):
 def save_audio_to_wav(audio, sample_rate, filename=output_file):
     """Save the recorded audio to a WAV file."""
     wav.write(filename, sample_rate, audio)
-    #print(f"Audio saved to: {filename}")
-
 
 def transcribe_audio(audio_file_path):
     """Transcribe the audio file using OpenAI's Whisper API."""
     with open(audio_file_path, 'rb') as audio_file:
-        #print("Sending audio to OpenAI for transcription...")
+        print("Sending audio to OpenAI for transcription...")
         transcription = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file
@@ -117,71 +121,17 @@ def transcribe_audio(audio_file_path):
         return transcription.text
 
 def delete_wav_file(filename):
-    """Delete the file after transcription."""
     if os.path.exists(filename):
         os.remove(filename)
-    #     print(f"WAV file '{filename}' deleted.")
-    # else:
-    #     print(f"WAV file '{filename}' not found.")
-
-
-def stream_chat_with_gpt(user_input):
-    """Stream the response from GPT using conversation history."""
-    conversation_history.append({"role": "user", "content": user_input})
-
-    # Stream the response
-    stream = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation_history,
-        stream=True  # Enable streaming
-    )
-
-    assistant_reply = ""
-    print("\nChatGPT is responding:\n")
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            content = chunk.choices[0].delta.content
-            sys.stdout.write(content)
-            sys.stdout.flush()
-            assistant_reply += content  # Build the full response
-
-    conversation_history.append({"role": "assistant", "content": assistant_reply})
-
-    return assistant_reply
-
-
-
-
 
 
 def stream_chat_with_gpt_and_speak(user_input):
     """Stream the GPT response and speak it in real-time."""
-    conversation_history.append({"role": "user", "content": user_input})
-
-    # Stream the response from GPT
-    stream = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation_history,
-        stream=True  # Enable streaming
-    )
-
-    assistant_reply = ""
-    print("\nChatGPT is responding:\n")
-    text_buffer = ""  # Buffer to collect chunks of text for speaking
-    buffer_limit = 50  # Set a reasonable buffer limit (can be adjusted)
-
-    samplerate = 24000  # Set the sample rate for speech output
+    samplerate = 24000
     chunk_size = 1024
-
-    # Queue to hold audio chunks
+    assistant_reply = ""
+    text_buffer = ""
     audio_queue = queue.Queue()
-
-    # Lock to ensure correct order of transcription
-    transcription_lock = threading.Lock()
-
-    # Start the output audio stream for speech
-    stream_audio = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16', blocksize=4096, latency='high')
-    stream_audio.start()
 
     def process_speech(text):
         """Converts text to speech and stores audio chunks in the queue."""
@@ -204,16 +154,39 @@ def stream_chat_with_gpt_and_speak(user_input):
                 break
             stream_audio.write(audio_data)  # Write audio data to the stream
 
-    # Start a thread to play audio continuously
-    audio_thread = threading.Thread(target=play_audio)
-    audio_thread.start()
-
     def collect_until_sentence_end(text_buffer):
         """Collect text until a sentence end is detected (., !, ?)."""
         match = re.search(r'[.!?]', text_buffer)   # Look for sentence-ending punctuation
         if match:
             return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
         return "", text_buffer
+
+    conversation_history.append({"role": "user", "content": user_input})
+
+    # Lock to ensure correct order of transcription
+    transcription_lock = threading.Lock()
+
+    # Stream the response from GPT
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=conversation_history,
+        stream=True  # Enable streaming
+    )
+
+    # Start the output audio stream for speech
+    stream_audio = sd.OutputStream(
+        samplerate=samplerate,
+        channels=1,
+        dtype='int16',
+        blocksize=4096,
+        latency=0.5
+    )
+
+    stream_audio.start()
+
+    # Start a thread to play audio continuously
+    audio_thread = threading.Thread(target=play_audio)
+    audio_thread.start()
 
     # Use a thread pool to process speech in the background
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -243,6 +216,10 @@ def stream_chat_with_gpt_and_speak(user_input):
     # Signal the end of the stream
     audio_queue.put(None)
 
+    # Check if the queue is empty (optional)
+    while not audio_queue.empty():
+        time.sleep(1.5)
+
     # Wait for the audio thread to finish
     audio_thread.join()
 
@@ -256,102 +233,73 @@ def stream_chat_with_gpt_and_speak(user_input):
 
     return assistant_reply
 
+def play_sound(file_path):
+    # Überprüfen, ob die Datei existiert
+    if not os.path.isfile(file_path):
+        print(f"File {file_path} not found!")
+        return
 
-def highlight_chatgpt_reply(reply):
-    """Highlight the reply from ChatGPT using a brighter style to simulate bold."""
-    print(Fore.CYAN + Style.BRIGHT + "\nChatGPT: " + reply + Style.RESET_ALL)
+    # Führe ffmpeg aus, um die Datei abzuspielen, ohne Konsolenausgabe
+    try:
+        subprocess.run(
+            ['ffplay', '-nodisp', '-autoexit', file_path],
+            stdout=subprocess.DEVNULL,  # Verbirgt Standardausgabe
+            stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
+            check=True
+        )
+        time.sleep(0.2)
+    except subprocess.CalledProcessError as e:
+        print(f"Error while playing sound: {e}")
+
 
 def speak_reply(reply):
     samplerate = 24000  # Set the sample rate to match the response
     chunk_size = 1024  # Original chunk size
-    buffer_size = 50  # collect chunks before playing.
+    buffer_size = 100  # Collect chunks before playing
     audio_buffer = []
 
     # Open a sounddevice stream to continuously play audio
-    stream = sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16')
-    stream.start()
+    with sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16') as stream:
 
-    with client.audio.speech.with_streaming_response.create(
-            model="tts-1",
-            voice="nova",
-            input=reply,
-            response_format="pcm"
-    ) as response:
-        for chunk in response.iter_bytes(chunk_size):
-            # Convert the chunk to a NumPy array
-            audio_data = np.frombuffer(chunk, dtype=np.int16)
+        with client.audio.speech.with_streaming_response.create(
+                model="tts-1",
+                voice="nova",
+                input=reply,
+                response_format="pcm"
+        ) as response:
+            for chunk in response.iter_bytes(chunk_size):
+                # Convert the chunk to a NumPy array
+                audio_data = np.frombuffer(chunk, dtype=np.int16)
 
-            # Buffer the audio chunks
-            audio_buffer.append(audio_data)
+                # Buffer the audio chunks
+                audio_buffer.append(audio_data)
 
-            # Wenn genügend Chunks gesammelt wurden, spiele sie ab
-            if len(audio_buffer) >= buffer_size:
+                # Wenn genügend Chunks gesammelt wurden, spiele sie ab
+                if len(audio_buffer) >= buffer_size:
+                    complete_audio = np.concatenate(audio_buffer)
+
+                    # Write directly to the stream without waiting
+                    stream.write(complete_audio)
+
+                    # Puffer leeren für den nächsten Block
+                    audio_buffer = []
+
+            # Spiele verbleibende Audio-Chunks nach dem Empfang ab
+            if audio_buffer:
                 complete_audio = np.concatenate(audio_buffer)
-
-                # Write directly to the stream without waiting
                 stream.write(complete_audio)
 
-                # Puffer leeren für den nächsten Block
-                audio_buffer = []
-
-        # Spiele verbleibende Audio-Chunks nach dem Empfang ab
-        if audio_buffer:
-            complete_audio = np.concatenate(audio_buffer)
-            stream.write(complete_audio)
-
-    stream.stop()
-    stream.close()
-    sd.wait()
-
-
-def play_ready_tone(frequency=440, duration=0.5, sample_rate=44100, fade_duration=0.05):
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-
-    # Erzeuge eine Kombination aus zwei Frequenzen für einen angenehmeren Klang
-    tone1 = np.sin(2 * np.pi * frequency * t)
-    tone2 = np.sin(2 * np.pi * (frequency * 1.5) * t)
-
-    # Kombiniere die beiden Töne
-    tone = (tone1 + tone2) * 0.5
-
-    # Ein- und Ausblenden (Fade-In und Fade-Out)
-    fade_in = np.linspace(0, 1, int(sample_rate * fade_duration))
-    fade_out = np.linspace(1, 0, int(sample_rate * fade_duration))
-    tone[:len(fade_in)] *= fade_in
-    tone[-len(fade_out):] *= fade_out
-
-    sd.play(tone, samplerate=sample_rate)
-    sd.wait()
-
-def play_shutdown_tone(frequency=220, duration=1.0, sample_rate=44100, fade_duration=0.3):
-    t = np.linspace(0, duration, int(sample_rate * duration), False)
-
-    # Erzeuge eine Kombination aus zwei Frequenzen für einen tieferen Klang
-    tone1 = np.sin(2 * np.pi * frequency * t)
-    tone2 = np.sin(2 * np.pi * (frequency * 0.75) * t)
-
-    # Kombiniere die beiden Töne für einen tieferen und harmonischen Sound
-    tone = (tone1 + tone2) * 0.5
-
-    # Ein- und besonders langes Ausblenden (Fade-In und langes Fade-Out)
-    fade_in = np.linspace(0, 1, int(sample_rate * fade_duration))
-    fade_out = np.linspace(1, 0, int(sample_rate * fade_duration * 2))  # Längeres Fade-Out
-    tone[:len(fade_in)] *= fade_in
-    tone[-len(fade_out):] *= fade_out
-
-    sd.play(tone, samplerate=sample_rate)
-    sd.wait()  # Warte, bis der Ton fertig abgespielt ist
-
+        # Wait a short moment to ensure all data is played before closing the stream
+        sd.sleep(500)
 
 if __name__ == "__main__":
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
-    print("Welcome to the OpenAI Audio Chat! Say 'exit' or 'quit' to end the conversation.")
-
-    play_ready_tone()
+    script_dir = os.path.dirname(os.path.realpath(__file__))
 
     while True:
         # Dynamically record audio until silence is detected
+        time.sleep(1)
         audio = record_audio(sample_rate)
         save_audio_to_wav(audio, sample_rate)
 
@@ -363,14 +311,11 @@ if __name__ == "__main__":
         if user_input.lower() in ['exit', 'quit', "halt's maul, rachel!", 'fresse', 'bey.', 'fresse!']:
             print("Goodbye!")
             delete_wav_file(output_file)
-            play_shutdown_tone()
+            play_sound(os.path.join(script_dir, "../../resources/sounds/standby.wav"))
             break
 
         # Stream the transcribed input to GPT and speak it in real-time
         reply = stream_chat_with_gpt_and_speak(user_input)
-
-        # Highlight the final response after streaming
-        highlight_chatgpt_reply(reply)
 
         # Delete the WAV file after transcription
         delete_wav_file(output_file)
