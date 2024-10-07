@@ -145,7 +145,6 @@ def process_speech(client, text, chunk_size=1024):
     if stop_flag.is_set():
         return
 
-    print("process speech")
     """Converts text to speech and stores audio chunks in the queue."""
     with transcription_lock:
         if stop_flag.is_set():
@@ -180,6 +179,7 @@ def play_audio(samplerate=24000, channels=1):
             continue
 
         if audio_data is None:
+            stop_flag.set()
             break
 
         stream_audio.write(audio_data)
@@ -222,7 +222,7 @@ def play_sound(file_path):
             stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
             check=True
         )
-        time.sleep(0.5)
+        sd.wait()
     except subprocess.CalledProcessError as e:
         print(f"Error while playing sound: {e}")
 
@@ -252,6 +252,7 @@ def listen_for_wakeword():
             print("Listening for 'Hey Rachel'...")
             while not stop_flag.is_set():
                 sd.sleep(1000)
+
 
     finally:
         if porcupine:
@@ -370,6 +371,8 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
 
     # Add final assistant reply to conversation history
     conversation_history.append({"role": "assistant", "content": assistant_reply})
+
+    print('\n')
 
     return assistant_reply
 
