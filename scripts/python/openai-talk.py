@@ -62,7 +62,7 @@ def is_speech(frame, sample_rate):
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
 
-    play_sound(os.path.join(script_dir, "../../resources/sounds/listening.wav"))
+    play_sound(os.path.join(script_dir, "../../resources/sounds/sent.wav"))
 
     audio_frames = []
     silence_duration = 0
@@ -385,7 +385,7 @@ if __name__ == "__main__":
         # Dynamically record audio until silence is detected
         audio = record_audio(sample_rate)
         save_audio_to_wav(audio, sample_rate)
-
+        play_sound(os.path.join(script_dir, "../../resources/sounds/sent.wav"))
         # Transcribe the saved audio file using OpenAI API
         user_input = transcribe_audio(output_file)
         print(f"You: {user_input}")
