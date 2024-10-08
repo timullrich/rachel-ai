@@ -14,18 +14,19 @@ import subprocess
 from colorama import Fore, Style
 from openai import OpenAI
 from dotenv import load_dotenv
+import pvporcupine
 
 # Load environment variables from .env file
 load_dotenv()
 
 platform = os.getenv("PLATFORM")
+access_key = os.getenv("PORCUPINE_ACCESS_KEY")
 
 # Initialize OpenAI client
 openai_api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=openai_api_key)
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-
 audio_queue = queue.Queue()
 transcription_lock = threading.Lock()
 
@@ -42,17 +43,26 @@ frame_size = int(sample_rate * frame_duration_ms / 1000)
 # List to store the conversation history
 conversation_history = []
 
+# Porcupine wake-word initialization
+keyword_path = os.path.join(script_dir,
+                            f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn")
+model_path = os.path.join(script_dir, "../../resources/porcupine/porcupine_params_de.pv")
+
+stop_flag = threading.Event()  # Flag to stop processes when wake-word is detected
+
 # Rotating spinner for visual feedback
 spinner = itertools.cycle(['-', '\\', '|', '/'])
+
 
 def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
     return vad.is_speech(frame.tobytes(), sample_rate)
 
+
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
 
-    play_sound(os.path.join(script_dir, "../../resources/sounds/listening.wav"))
+    play_sound(os.path.join(script_dir, "../../resources/sounds/sent.wav"))
 
     audio_frames = []
     silence_duration = 0
@@ -85,8 +95,7 @@ def record_audio(sample_rate):
             # Check if 5 seconds have passed without starting the recording
             if not recording_started and (time.time() - start_time) > 4:
                 print("No speech detected for 4 seconds, exiting...")
-                play_sound(
-                os.path.join(script_dir, "../../resources/sounds/standby.wav"))
+                play_sound(os.path.join(script_dir, "../../resources/sounds/standby.wav"))
                 sys.exit()  # Exit the entire script
 
             else:
@@ -110,9 +119,11 @@ def record_audio(sample_rate):
     else:
         return None  # Rückgabe None, wenn kein Audio aufgenommen wurde
 
+
 def save_audio_to_wav(audio, sample_rate, filename=output_file):
     """Save the recorded audio to a WAV file."""
     wav.write(filename, sample_rate, audio)
+
 
 def transcribe_audio(audio_file_path):
     """Transcribe the audio file using OpenAI's Whisper API."""
@@ -124,13 +135,20 @@ def transcribe_audio(audio_file_path):
         )
         return transcription.text
 
+
 def delete_wav_file(filename):
     if os.path.exists(filename):
         os.remove(filename)
 
+
 def process_speech(client, text, chunk_size=1024):
+    if stop_flag.is_set():
+        return
+
     """Converts text to speech and stores audio chunks in the queue."""
     with transcription_lock:
+        if stop_flag.is_set():
+            return
         with client.audio.speech.with_streaming_response.create(
                 model="tts-1",
                 voice="nova",
@@ -138,8 +156,12 @@ def process_speech(client, text, chunk_size=1024):
                 response_format="pcm"
         ) as response_audio:
             for audio_chunk in response_audio.iter_bytes(chunk_size):
+                if stop_flag.is_set():
+                    response_audio.close()
+                    return
                 audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
                 audio_queue.put(audio_data)  # Store audio in the queue
+
 
 def play_audio(samplerate=24000, channels=1):
     """Continuously play audio from the queue."""
@@ -148,23 +170,30 @@ def play_audio(samplerate=24000, channels=1):
     stream_audio.start()
 
     while True:
-        audio_data = audio_queue.get()  # Blocking until an item is available
-        if audio_data is None:  # End signal
+        if stop_flag.is_set():
             break
-        stream_audio.write(audio_data)  # Write audio data to the stream
-        sd.wait()
 
-    # Sicherstellen, dass alle Audio-Chunks aus der Queue entnommen werden
-    while not audio_queue.empty():
-        audio_data = audio_queue.get()
-        if audio_data is not None:
-            stream_audio.write(audio_data)
-            sd.wait()
+        try:
+            audio_data = audio_queue.get(timeout=1)
+        except queue.Empty:
+            continue
 
+        if audio_data is None:
+            stop_flag.set()
+            break
+
+        stream_audio.write(audio_data)
+
+    # Stoppe und schließe den Audio-Stream
     stream_audio.stop()
     stream_audio.close()
     sd.wait()
     sd.wait()
+
+    # Leere die Audio-Queue, um sicherzustellen, dass keine weiteren Chunks abgespielt werden
+    with audio_queue.mutex:
+        audio_queue.queue.clear()
+
 
 def collect_until_sentence_end(text_buffer):
     """Collect text until a sentence end is detected (., !, ?)."""
@@ -174,11 +203,13 @@ def collect_until_sentence_end(text_buffer):
                                           match.end():]  # Return the sentence and the remaining text
     return "", text_buffer
 
+
 def format_and_print_content(content):
     """Formats content for console output."""
     formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
     sys.stdout.write(formatted_content)
     sys.stdout.flush()
+
 
 def play_sound(file_path):
     if not os.path.isfile(file_path):
@@ -191,9 +222,42 @@ def play_sound(file_path):
             stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
             check=True
         )
-        time.sleep(0.5)
+        sd.wait()
     except subprocess.CalledProcessError as e:
         print(f"Error while playing sound: {e}")
+
+
+def audio_callback(indata, frames, time, status):
+    global porcupine
+    pcm = np.int16(indata[:, 0] * 32767)
+    result = porcupine.process(pcm)
+
+    if result >= 0:
+        # Stop Wake Word detected
+        stop_flag.set()  # Set the flag to stop GPT and audio streaming.
+
+
+def listen_for_wakeword():
+    """Listens for the wakeword in a separate thread."""
+    global porcupine
+    porcupine = None
+    try:
+        porcupine = pvporcupine.create(
+            access_key=access_key,
+            keyword_paths=[keyword_path],
+            model_path=model_path
+        )
+
+        with sd.InputStream(samplerate=porcupine.sample_rate, channels=1, callback=audio_callback, blocksize=porcupine.frame_length):
+            print("Listening for 'Hey Rachel'...")
+            while not stop_flag.is_set():
+                sd.sleep(1000)
+
+
+    finally:
+        if porcupine:
+            porcupine.delete()
+
 
 def speak(text):
     samplerate = 24000  # Set the sample rate to match the response
@@ -235,10 +299,15 @@ def speak(text):
         # Wait a short moment to ensure all data is played before closing the stream
         sd.sleep(500)
 
+
 def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chunk_size=1024):
     """Stream the GPT response and speak it in real-time."""
     assistant_reply = ""
     text_buffer = ""
+
+    # Start the wake-word detection in a separate thread
+    wakeword_thread = threading.Thread(target=listen_for_wakeword)
+    wakeword_thread.start()
 
     # Play audio in a separate thread
     audio_thread = threading.Thread(target=play_audio)
@@ -253,34 +322,40 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
         stream=True  # Enable streaming
     )
 
-    # Use a thread pool to process speech in the background
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = None
-        for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
+        try:
+            for chunk in stream:
+                if stop_flag.is_set():  # Wenn Wakeword erkannt wird
+                    executor.shutdown(wait=False)
+                    break
 
-                # Format and print the content
-                format_and_print_content(content)
+                if chunk.choices[0].delta.content is not None:
+                    content = chunk.choices[0].delta.content
+                    format_and_print_content(content)
 
-                assistant_reply += content
-                text_buffer += content
+                    assistant_reply += content
+                    text_buffer += content
 
-                # Check if the sentence ends to process the text
-                sentence, remaining_text = collect_until_sentence_end(text_buffer)
-                if sentence:
-                    future = executor.submit(process_speech, client, sentence, chunk_size)
-                    text_buffer = remaining_text  # Keep the leftover text for the next round
+                    sentence, remaining_text = collect_until_sentence_end(text_buffer)
+                    if sentence and not stop_flag.is_set():
+                        future = executor.submit(process_speech, client, sentence, chunk_size)
+                        text_buffer = remaining_text  # Resttext für nächste Runde behalten
 
-        print("\n")
 
-        # Process remaining text if any (even if it's not a complete sentence)
-        if text_buffer:
-            future = executor.submit(process_speech, client, text_buffer, chunk_size)
+            if stop_flag.is_set():
+                print("Skipping future.result() due to stop flag")
+            elif future:
+                future.result()
 
-        # Wait for the speech processing to finish
-        if future:
-            future.result()
+        except Exception as e:
+            print(f"Error encountered: {e}")
+
+        finally:
+            if stop_flag.is_set():
+                executor.shutdown(wait=False)
+                audio_queue.put(None)
+
 
     # Signal the end of the stream
     audio_queue.put(None)
@@ -288,19 +363,29 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
     # Wait for the audio thread to finish
     audio_thread.join()
 
+    # Wait for the wake-word thread to finish
+    wakeword_thread.join()
+
+    # Reset the stop_flag so the script can listen again
+    stop_flag.clear()
+
     # Add final assistant reply to conversation history
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
+    print('\n')
+
     return assistant_reply
 
+
 if __name__ == "__main__":
+
     conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
 
     while True:
         # Dynamically record audio until silence is detected
         audio = record_audio(sample_rate)
         save_audio_to_wav(audio, sample_rate)
-
+        play_sound(os.path.join(script_dir, "../../resources/sounds/sent.wav"))
         # Transcribe the saved audio file using OpenAI API
         user_input = transcribe_audio(output_file)
         print(f"You: {user_input}")
