@@ -173,7 +173,8 @@ class AudioService:
 
     def play_audio(self):
         """Spielt kontinuierlich Audio aus der Queue ab."""
-        stream_audio = sd.OutputStream(samplerate=24000, channels=1, dtype='int16')
+        stream_audio = sd.OutputStream(
+            samplerate=24000, channels=1, dtype='int16', blocksize=8192, latency='high')
         stream_audio.start()
 
         while True:
