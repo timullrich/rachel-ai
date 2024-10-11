@@ -148,7 +148,7 @@ if __name__ == "__main__":
                 client, user_input, conversation_history, audio_service)
 
     except SilenceDetection:
-        logger.info("No speech detected. Exiting...")
+        logger.info("Silence detected. Exiting...")
         audio_service.play_sound(
             os.path.join(script_dir, "resources/sounds/standby.wav"))
         sys.exit()  # Exit the entire script
