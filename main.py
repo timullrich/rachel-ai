@@ -89,7 +89,7 @@ def process_gpt_stream(stream, audio_service, text_buffer):
                     future = executor.submit(audio_service.process_speech, sentence)
                     text_buffer = remaining_text
 
-        # Verarbeite verbleibenden Text
+        # Verarbeite verbleibenden Text (falls es kein ganzer Satz war).
         if text_buffer:
             future = executor.submit(audio_service.process_speech, text_buffer)
 

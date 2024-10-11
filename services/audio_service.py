@@ -158,8 +158,8 @@ class AudioService:
             )
             return transcription.text
 
-    def process_speech(self, text, chunk_size=1024):
-        """Konvertiert den Text in Audio und speichert die Chunks in der Queue."""
+    def process_speech(self, text):
+        """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
         with self.transcription_lock:
             with self.open_ai_client.audio.speech.with_streaming_response.create(
                     model="tts-1",
@@ -167,9 +167,9 @@ class AudioService:
                     input=text,
                     response_format="pcm"
             ) as response_audio:
-                for audio_chunk in response_audio.iter_bytes(chunk_size):
-                    audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
-                    self.audio_queue.put(audio_data)  # Audio-Chunks in die Queue legen
+                # Hole alle Audio-Daten auf einmal
+                audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
+                self.audio_queue.put(audio_data)  # Lege das gesamte Audio in die Queue
 
     def play_audio(self):
         """Spielt kontinuierlich Audio aus der Queue ab."""
