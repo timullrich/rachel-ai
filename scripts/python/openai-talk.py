@@ -15,8 +15,6 @@ from colorama import Fore, Style
 from openai import OpenAI
 from dotenv import load_dotenv
 import pvporcupine
-from scipy.signal import butter, sosfilt
-from scipy.fft import rfft, rfftfreq
 
 # Load environment variables from .env file
 load_dotenv()
@@ -56,59 +54,10 @@ stop_flag = threading.Event()  # Flag to stop processes when wake-word is detect
 spinner = itertools.cycle(['-', '\\', '|', '/'])
 
 
-def butter_bandpass_sos(lowcut, highcut, fs, order=14):
-    """Create an even sharper bandpass filter using Second-Order Sections to filter out unwanted frequencies."""
-    sos = butter(order, [lowcut, highcut], btype='band', output='sos', fs=fs)
-    return sos
+def is_speech(frame, sample_rate):
+    """Check if the audio frame contains speech using webrtcvad."""
+    return vad.is_speech(frame.tobytes(), sample_rate)
 
-
-def apply_filter_sos(data, sos):
-    """Apply the second-order sections filter to the audio data."""
-    filtered = sosfilt(sos, data)
-    return filtered
-
-
-def is_speech(frame, sample_rate, volume_threshold=3500, frame_duration_ms=30):
-    """Check if the audio frame contains speech using webrtcvad and additional filtering."""
-
-    # Convert frame to numpy array
-    audio_data = np.frombuffer(frame, dtype=np.int16)
-
-    # Check if the volume is above the threshold to filter out quiet noise
-    max_amplitude = np.max(np.abs(audio_data))
-    if max_amplitude < volume_threshold:
-        return False  # Frame is too quiet to be speech
-
-    # Frequency analysis to discard non-speech-like sounds
-    yf = rfft(audio_data)
-    xf = rfftfreq(len(audio_data), 1 / sample_rate)
-
-    # Reject non-speech frequencies and tighten the range further
-    dominant_freq = np.argmax(np.abs(yf))
-    dominant_frequency_value = xf[dominant_freq]
-
-    if dominant_frequency_value < 500 or dominant_frequency_value > 2400:
-        return False  # Not speech-like sound based on frequency range
-
-    # Create the bandpass filter (using sos format for stability)
-    sos = butter_bandpass_sos(lowcut=500.0, highcut=2400.0, fs=sample_rate)
-
-    # Apply the sos filter to the audio data
-    filtered_data = apply_filter_sos(audio_data, sos)
-
-    # Convert filtered data back to bytes for webrtcvad
-    filtered_frame = filtered_data.astype(np.int16).tobytes()
-
-    # Use webrtcvad to check if the frame contains speech
-    speech_detected = vad.is_speech(filtered_frame, sample_rate)
-
-    return speech_detected
-
-
-def aggregate_frames(frames, sample_rate):
-    """Aggregate multiple frames to avoid reacting to short, sudden sounds."""
-    aggregated = np.concatenate(frames)
-    return is_speech(aggregated.tobytes(), sample_rate)
 
 def record_audio(sample_rate):
     """Record audio dynamically, stop when no speech is detected."""
@@ -352,9 +301,11 @@ def speak(text):
 
 
 def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chunk_size=1024):
-    """Stream the GPT response and speak it in real-time."""
+    """Stream GPT responses and handle function calls like executing system commands."""
     assistant_reply = ""
     text_buffer = ""
+    function_call_name = None
+    function_call_arguments = ""
 
     # Start the wake-word detection in a separate thread
     wakeword_thread = threading.Thread(target=listen_for_wakeword)
