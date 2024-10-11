@@ -78,7 +78,7 @@ class AudioService:
 
                 # Check if 3 seconds have passed without starting the recording
                 if not recording_started and (time.time() - start_time) > 3:
-                    self.logger.info("No speech detected for 4 seconds...")
+                    self.logger.info("No speech detected for 3 seconds...")
                     raise SilenceDetection
 
                 else:
