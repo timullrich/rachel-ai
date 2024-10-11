@@ -159,6 +159,7 @@ class AudioService:
             return transcription.text
 
     def process_speech(self, text):
+        logging.info("Sending sentence to openAi-API to convert to audio.")
         """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
         with self.transcription_lock:
             with self.open_ai_client.audio.speech.with_streaming_response.create(
@@ -167,6 +168,7 @@ class AudioService:
                     input=text,
                     response_format="pcm"
             ) as response_audio:
+                logging.info("Audio of sentence received from openAi-API.")
                 # Hole alle Audio-Daten auf einmal
                 audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
                 self.audio_queue.put(audio_data)  # Lege das gesamte Audio in die Queue
