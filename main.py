@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from connectors.open_ai_connector import OpenAiConnector
 from services.chat_service import ChatService
-from services.audio_service import AudioService, SilenceDetection
+from services.audio_service import AudioService, AudioRecordingFailed
 
 
 def setup_logging() -> logging.Logger:
@@ -48,16 +48,21 @@ if __name__ == "__main__":
     chat_service: ChatService = ChatService(open_ai_connector)
     audio_service = AudioService(open_ai_connector, sound_theme=sound_theme)
 
-    # # Example for simple text to speech output (using openAI API)
-    # audio_service.simple_speak("Das ist ein Test")
-
     try:
         while True:
             audio_service.play_sound("sent")
-            audio = audio_service.record()
-            if audio is not None:
-                audio_service.save_audio_to_wav(audio, sample_rate, recorded_wav_file)
 
+            # Start recording and handle result
+            try:
+                result = audio_service.record()
+
+                if result.silence_timeout:
+                    logger.info("No speech detected for 3 seconds. Exiting...")
+                    audio_service.play_sound("standby")
+                    sys.exit()  # Exit the entire script
+
+                # Successful recording: Save audio and transcribe it
+                audio_service.save_audio_to_wav(result.data, sample_rate, recorded_wav_file)
                 audio_service.play_sound("sent")
 
                 # Transcribe the saved audio file using OpenAI API
@@ -69,11 +74,12 @@ if __name__ == "__main__":
                 # Stream the transcribed input to GPT and speak it in real-time
                 reply: str = chat_service.talk_with_chat_gpt(user_input, conversation_history)
 
-    except SilenceDetection:
-        logger.info("Silence detected. Exiting...")
-        audio_service.play_sound("standby")
-        sys.exit()  # Exit the entire script
+            except AudioRecordingFailed as e:
+                logger.error(f"Recording failed: {e}")
+                continue  # Schleife erneut starten
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
-        sys.exit()
+        sys.exit()  # Exit the entire script
+
+

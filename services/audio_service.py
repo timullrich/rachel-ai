@@ -15,10 +15,15 @@ import webrtcvad
 
 from connectors.open_ai_connector import OpenAiConnector
 
-
-class SilenceDetection(Exception):
-    """Exception raised when no speech is detected within a specified time."""
+class AudioRecordingFailed(Exception):
+    """Exception raised when the audio recording fails unexpectedly."""
     pass
+
+class AudioRecordResult:
+    def __init__(self, success: bool, data: Optional[np.ndarray] = None, silence_timeout: bool = False):
+        self.success = success
+        self.data = data
+        self.silence_timeout = silence_timeout  # Zeigt an, ob 3 Sekunden ohne Sprache verstrichen sind
 
 
 class AudioService:
@@ -58,15 +63,12 @@ class AudioService:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error while playing sound: {e}")
 
-    def record(self) -> Optional[np.ndarray]:
-        """Record audio dynamically, stop when no speech is detected."""
+    def record(self) -> AudioRecordResult:
+        """Record audio dynamically, start only when speech is detected, stop after 1 second of silence."""
         audio_frames = []
         silence_duration = 0
         max_silence_duration = 1  # Stop recording after 1 second of silence
         recording_started = False  # Track if recording has started after speech detection
-
-        # Rotating spinner for visual feedback
-        spinner = itertools.cycle(['-', '\\', '|', '/'])
 
         sample_rate = 16000
         frame_duration_ms = 30  # Frame size in ms (must be 10, 20, or 30)
@@ -74,53 +76,50 @@ class AudioService:
 
         stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
         stream.start()
+        self.logger.info("Audio stream started.")
 
-        start_time = time.time()
+        start_time = time.time()  # start time, to observer x seconds silence
 
         try:
             while True:
                 audio_frame, _ = stream.read(frame_size)
                 audio_frames.append(audio_frame)
 
-                # Display a rotating spinner
-                sys.stdout.write(next(spinner))  # Show the next spinner character
-                sys.stdout.flush()
-                sys.stdout.write('\b')  # Erase the last character printed
-
-                # Check if speech is detected
+                # detect speech
                 if self.is_speech(audio_frame, sample_rate):
-                    silence_duration = 0  # Reset silence duration if speech detected
-
+                    silence_duration = 0  # Reset silence duration if speech is detected
                     if not recording_started:
                         self.logger.info("Speech detected, starting recording...")
+                        recording_started = True
 
-                        recording_started = True  # Start recording after speech is detected
-
-                # Check if 3 seconds have passed without starting the recording
+                # if recoring has started but 3 seconds of silence was detected
                 if not recording_started and (time.time() - start_time) > 3:
-                    self.logger.info("No speech detected for 3 seconds...")
-                    raise SilenceDetection
+                    self.logger.info("No speech detected for 3 seconds, timeout.")
+                    return AudioRecordResult(success=False, silence_timeout=True)
 
-                else:
-                    if recording_started:
-                        if silence_duration < max_silence_duration:
-                            silence_duration += frame_duration_ms / 1000
+                # silence after speech has started
+                if recording_started:
+                    if silence_duration > max_silence_duration:
+                        self.logger.info("Silence detected, stopping recording.")
+                        break  # Aufnahme beenden, wenn 1 Sekunde Stille erkannt wurde
 
-                # If too much silence is detected after recording started, stop recording
-                if recording_started and silence_duration > max_silence_duration:
-                    self.logger.info("Silence detected, stopping recording.")
-                    break
+                    # increase silence duration after speech was detected
+                    silence_duration += frame_duration_ms / 1000
 
         finally:
             stream.stop()
             stream.close()
+            self.logger.info("Audio stream stopped.")
 
-        # Convert audio_frames (list of arrays) to a single NumPy array
-        if audio_frames:
-            audio_array = np.concatenate(audio_frames, axis=0)
-            return audio_array  # Rückgabe als NumPy-Array
-        else:
-            return None  # Rückgabe None, wenn kein Audio aufgenommen wurde
+        # somehting failed with the mic
+        if not audio_frames:
+            raise AudioRecordingFailed("Recording started but no audio was captured.")
+
+        # recording was successful
+        audio_array = np.concatenate(audio_frames, axis=0)
+        self.logger.info("Audio recording complete.")
+
+        return AudioRecordResult(success=True, data=audio_array)
 
     def is_speech(self, frame: np.ndarray, sample_rate: int, vad_mode: int = 3) -> bool:
         """Check if the audio frame contains speech using webrtcvad."""
