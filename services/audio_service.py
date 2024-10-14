@@ -22,22 +22,35 @@ class SilenceDetection(Exception):
 
 
 class AudioService:
-    def __init__(self, open_ai_connector: OpenAiConnector):
+    ALLOWED_SOUND_KEYS = {"sent", "standby"}
+
+    def __init__(self, open_ai_connector: OpenAiConnector, sound_theme: str = "default"):
         self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
-
         self.logger = logging.getLogger(__name__)
+        self.sound_theme = sound_theme
+        self.base_sound_path = os.path.join("resources", "sounds", "themes", self.sound_theme)
 
-    def play_sound(self, file_path: str):
-        if not os.path.isfile(file_path):
-            self.logger.error(f"File {file_path} not found!")
+    def play_sound(self, sound_key: str) -> None:
+        """Plays a sound based on the provided key."""
+        if sound_key not in self.ALLOWED_SOUND_KEYS:
+            self.logger.error(
+                f"Sound key '{sound_key}' is not allowed! Allowed keys are: "
+                f"{self.ALLOWED_SOUND_KEYS}")
             return
+
+        file_path = os.path.join(self.base_sound_path, f"{sound_key}.wav")
+        if not os.path.isfile(file_path):
+            self.logger.error(
+                f"Sound for key '{sound_key}' not found or file {file_path} is missing!")
+            return
+
         try:
             subprocess.run(
                 ['ffplay', '-nodisp', '-autoexit', file_path],
-                stdout=subprocess.DEVNULL,  # Verbirgt Standardausgabe
-                stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 check=True
             )
             sd.wait()

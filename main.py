@@ -31,7 +31,8 @@ if __name__ == "__main__":
     # Load environment variables from .env file
     load_dotenv()
 
-    platform: str = os.getenv("PLATFORM", "")
+    platform: str = os.getenv("PLATFORM", "raspberry-pi")
+    sound_theme = os.getenv("SOUND_THEME", "default")
     script_dir: str = os.path.dirname(os.path.realpath(__file__))
 
     sample_rate: int = 16000  # Standard sample rate for Whisper
@@ -45,19 +46,19 @@ if __name__ == "__main__":
 
     # Init services
     chat_service: ChatService = ChatService(open_ai_connector)
-    audio_service: AudioService = AudioService(open_ai_connector)
+    audio_service = AudioService(open_ai_connector, sound_theme=sound_theme)
 
     # # Example for simple text to speech output (using openAI API)
     # audio_service.simple_speak("Das ist ein Test")
 
     try:
         while True:
-            audio_service.play_sound(os.path.join(script_dir, "resources/sounds/sent.wav"))
+            audio_service.play_sound("sent")
             audio = audio_service.record()
             if audio is not None:
                 audio_service.save_audio_to_wav(audio, sample_rate, recorded_wav_file)
 
-                audio_service.play_sound(os.path.join(script_dir, "resources/sounds/sent.wav"))
+                audio_service.play_sound("sent")
 
                 # Transcribe the saved audio file using OpenAI API
                 user_input: str = audio_service.transcribe_audio(recorded_wav_file)
@@ -70,8 +71,7 @@ if __name__ == "__main__":
 
     except SilenceDetection:
         logger.info("Silence detected. Exiting...")
-        audio_service.play_sound(
-            os.path.join(script_dir, "resources/sounds/standby.wav"))
+        audio_service.play_sound("standby")
         sys.exit()  # Exit the entire script
 
     except Exception as e:
