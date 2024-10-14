@@ -16,10 +16,10 @@ class SilenceDetection(Exception):
     pass
 
 class AudioService:
-    def __init__(self, open_ai_client):
+    def __init__(self, open_ai_connector):
         self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
         self.transcription_lock = threading.Lock()
-        self.open_ai_client = open_ai_client
+        self.open_ai_connector = open_ai_connector
 
         self.logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class AudioService:
         # Open a sounddevice stream to continuously play audio
         with sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16') as stream:
 
-            with self.open_ai_client.audio.speech.with_streaming_response.create(
+            with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
                     model="tts-1",
                     voice="nova",
                     input=text,
@@ -152,7 +152,7 @@ class AudioService:
         """Transcribe the audio file using OpenAI's Whisper API."""
         with open(audio_file_path, 'rb') as audio_file:
             self.logger.info("Sending audio to OpenAI for transcription...")
-            transcription = self.open_ai_client.audio.transcriptions.create(
+            transcription = self.open_ai_connector.client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file
             )
@@ -162,7 +162,7 @@ class AudioService:
         logging.info("Sending sentence to openAi-API to convert to audio.")
         """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
         with self.transcription_lock:
-            with self.open_ai_client.audio.speech.with_streaming_response.create(
+            with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
                     model="tts-1",
                     voice="nova",
                     input=text,
