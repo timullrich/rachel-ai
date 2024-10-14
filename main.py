@@ -25,6 +25,11 @@ def setup_logging():
     logger = logging.getLogger(__name__)
     return logger
 
+def format_and_print_content(content):
+    """Formats content for console output."""
+    formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
+    sys.stdout.write(formatted_content)
+    sys.stdout.flush()
 
 def collect_until_sentence_end(text_buffer):
     """Collect text until a sentence end is detected (., !, ?)."""
@@ -37,8 +42,6 @@ def collect_until_sentence_end(text_buffer):
 
 def talk_with_chat_gpt(client, user_input, conversation_history, audio_service):
     """Stream GPT responses and handle function calls like executing system commands."""
-    assistant_reply = ""
-    text_buffer = ""
 
     # Starte den Audio-Thread
     audio_thread = threading.Thread(target=audio_service.play_audio)
@@ -54,7 +57,7 @@ def talk_with_chat_gpt(client, user_input, conversation_history, audio_service):
     )
 
     # Verarbeite den GPT-Stream
-    assistant_reply = process_gpt_stream(stream, audio_service, text_buffer)
+    assistant_reply = process_gpt_stream(stream, audio_service)
 
     # Signalisiere das Ende des Streams
     audio_service.stop_audio()
@@ -68,8 +71,9 @@ def talk_with_chat_gpt(client, user_input, conversation_history, audio_service):
     return assistant_reply
 
 
-def process_gpt_stream(stream, audio_service, text_buffer):
+def process_gpt_stream(stream, audio_service):
     """Verarbeite GPT-Stream und führe Sprachverarbeitung aus."""
+    text_buffer = ""
     assistant_reply = ""
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -97,13 +101,6 @@ def process_gpt_stream(stream, audio_service, text_buffer):
             future.result()
 
     return assistant_reply
-
-
-def format_and_print_content(content):
-    """Formats content for console output."""
-    formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
-    sys.stdout.write(formatted_content)
-    sys.stdout.flush()
 
 
 if __name__ == "__main__":
