@@ -14,17 +14,8 @@ import sounddevice as sd
 import webrtcvad
 
 from connectors.open_ai_connector import OpenAiConnector
-
-class AudioRecordingFailed(Exception):
-    """Exception raised when the audio recording fails unexpectedly."""
-    pass
-
-class AudioRecordResult:
-    def __init__(self, success: bool, data: Optional[np.ndarray] = None, silence_timeout: bool = False):
-        self.success = success
-        self.data = data
-        self.silence_timeout = silence_timeout  # Zeigt an, ob 3 Sekunden ohne Sprache verstrichen sind
-
+from entities.audio_record_result import AudioRecordResult
+from exceptions.audio_recording_failed import AudioRecordingFailed
 
 class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
@@ -64,7 +55,10 @@ class AudioService:
             self.logger.error(f"Error while playing sound: {e}")
 
     def record(self) -> AudioRecordResult:
-        """Record audio dynamically, start only when speech is detected, stop after 1 second of silence."""
+        """Record audio dynamically, start only when speech is detected, stop after 1 second of silence.
+        Raises:
+            AudioRecordingFailed: If no audio was captured during the recording.
+        """
         audio_frames = []
         silence_duration = 0
         max_silence_duration = 1  # Stop recording after 1 second of silence
