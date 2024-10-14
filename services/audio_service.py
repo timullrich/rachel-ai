@@ -25,6 +25,7 @@ class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
     def __init__(self, open_ai_connector: OpenAiConnector, sound_theme: str = "default"):
+        self.vad = webrtcvad.Vad()
         self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
@@ -121,12 +122,14 @@ class AudioService:
         else:
             return None  # Rückgabe None, wenn kein Audio aufgenommen wurde
 
-    def is_speech(self, frame: np.ndarray, sample_rate: int) -> bool:
+    def is_speech(self, frame: np.ndarray, sample_rate: int, vad_mode: int = 3) -> bool:
         """Check if the audio frame contains speech using webrtcvad."""
-        vad: webrtcvad.Vad = webrtcvad.Vad()
-        vad.set_mode(3)  # 0 = aggressive, 3 = least aggressive
-
-        return vad.is_speech(frame.tobytes(), sample_rate)
+        try:
+            self.vad.set_mode(vad_mode)
+            return self.vad.is_speech(frame.tobytes(), sample_rate)
+        except Exception as e:
+            self.logger.error(f"Error in is_speech detection: {e}")
+            return False
 
     def simple_speak(self, text: str) -> None:
         samplerate = 24000  # Set the sample rate to match the response
