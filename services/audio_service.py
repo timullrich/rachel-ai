@@ -6,6 +6,7 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Optional, Union
 
 import numpy as np
 import scipy.io.wavfile as wav
@@ -43,7 +44,7 @@ class AudioService:
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error while playing sound: {e}")
 
-    def record(self):
+    def record(self) -> Optional[np.ndarray]:
         """Record audio dynamically, stop when no speech is detected."""
         audio_frames = []
         silence_duration = 0
@@ -107,14 +108,14 @@ class AudioService:
         else:
             return None  # Rückgabe None, wenn kein Audio aufgenommen wurde
 
-    def is_speech(self, frame, sample_rate):
+    def is_speech(self, frame: np.ndarray, sample_rate: int) -> bool:
         """Check if the audio frame contains speech using webrtcvad."""
-        vad = webrtcvad.Vad()
+        vad: webrtcvad.Vad = webrtcvad.Vad()
         vad.set_mode(3)  # 0 = aggressive, 3 = least aggressive
 
         return vad.is_speech(frame.tobytes(), sample_rate)
 
-    def simple_speak(self, text: str):
+    def simple_speak(self, text: str) -> None:
         samplerate = 24000  # Set the sample rate to match the response
         chunk_size = 1024  # Original chunk size
         buffer_size = 100  # Collect chunks before playing
@@ -153,7 +154,7 @@ class AudioService:
 
             sd.wait()
 
-    def transcribe_audio(self, audio_file_path: str):
+    def transcribe_audio(self, audio_file_path: str) -> str:
         """Transcribe the audio file using OpenAI's Whisper API."""
         with open(audio_file_path, 'rb') as audio_file:
             self.logger.info("Sending audio to OpenAI for transcription...")
@@ -163,7 +164,7 @@ class AudioService:
             )
             return transcription.text
 
-    def process_speech(self, text: str):
+    def process_speech(self, text: str) -> None:
         logging.info("Sending sentence to openAi-API to convert to audio.")
         """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
         with self.transcription_lock:
@@ -178,7 +179,7 @@ class AudioService:
                 audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
                 self.audio_queue.put(audio_data)  # Lege das gesamte Audio in die Queue
 
-    def play_audio(self):
+    def play_audio(self) -> None:
         """Spielt kontinuierlich Audio aus der Queue ab."""
         stream_audio = sd.OutputStream(
             samplerate=24000, channels=1, dtype='int16')
@@ -195,14 +196,14 @@ class AudioService:
         stream_audio.close()
         sd.wait()
 
-    def stop_audio(self):
+    def stop_audio(self) -> None:
         """Sendet ein Endsignal an die Queue, um die Wiedergabe zu stoppen."""
         self.audio_queue.put(None)
 
-    def save_audio_to_wav(self, audio, sample_rate, filename: str):
+    def save_audio_to_wav(self, audio: np.ndarray, sample_rate: int, filename: str) -> None:
         """Save the recorded audio to a WAV file."""
         wav.write(filename, sample_rate, audio)
 
-    def delete_wav_file(self, filename: str):
+    def delete_wav_file(self, filename: str) -> None:
         if os.path.exists(filename):
             os.remove(filename)

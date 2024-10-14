@@ -2,39 +2,38 @@ import sys
 import re
 import threading
 import concurrent.futures
+from typing import List, Tuple, Dict, Any
 
 from colorama import Fore, Style
-
 from connectors.open_ai_connector import OpenAiConnector
 from services.audio_service import AudioService
 
 
 class ChatService:
     def __init__(self, openai_connector: OpenAiConnector):
-        self.openai_connector = openai_connector
-        self.audio_service = AudioService(openai_connector)
+        self.openai_connector: OpenAiConnector = openai_connector
+        self.audio_service: AudioService = AudioService(openai_connector)
 
-        self.conversation_history = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.conversation_history: List[Dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
-    def format_and_print_content(self, content: str):
+    def format_and_print_content(self, content: str) -> None:
         """Formats content for console output."""
-        formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
+        formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
         sys.stdout.write(formatted_content)
         sys.stdout.flush()
 
-    def collect_until_sentence_end(self, text_buffer: str):
+    def collect_until_sentence_end(self, text_buffer: str) -> Tuple[str, str]:
         """Collect text until a sentence end is detected (., !, ?)."""
         match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
         if match:
-            return text_buffer[:match.end()], text_buffer[
-                                              match.end():]  # Return the sentence and the remaining text
+            return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
         return "", text_buffer
 
-    def talk_with_chat_gpt(self, user_input: str, conversation_history):
+    def talk_with_chat_gpt(self, user_input: str, conversation_history: List[Dict[str, str]]) -> str:
         """Stream GPT responses and handle function calls like executing system commands."""
 
         # Starte den Audio-Thread
-        audio_thread = threading.Thread(target=self.audio_service.play_audio)
+        audio_thread: threading.Thread = threading.Thread(target=self.audio_service.play_audio)
         audio_thread.start()
 
         conversation_history.append({"role": "user", "content": user_input})
@@ -47,7 +46,7 @@ class ChatService:
         )
 
         # Verarbeite den GPT-Stream
-        assistant_reply = self.process_gpt_stream(stream)
+        assistant_reply: str = self.process_gpt_stream(stream)
 
         # Signalisiere das Ende des Streams
         self.audio_service.stop_audio()
@@ -60,16 +59,16 @@ class ChatService:
 
         return assistant_reply
 
-    def process_gpt_stream(self, stream):
+    def process_gpt_stream(self, stream: Any) -> str:
         """Verarbeite GPT-Stream und führe Sprachverarbeitung aus."""
-        text_buffer = ""
-        assistant_reply = ""
+        text_buffer: str = ""
+        assistant_reply: str = ""
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = None
+            future: concurrent.futures.Future = None
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None:
-                    content = chunk.choices[0].delta.content
+                    content: str = chunk.choices[0].delta.content
 
                     self.format_and_print_content(content)
 
