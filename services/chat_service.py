@@ -5,22 +5,24 @@ import concurrent.futures
 
 from colorama import Fore, Style
 
+from connectors.open_ai_connector import OpenAiConnector
 from services.audio_service import AudioService
 
+
 class ChatService:
-    def __init__(self, openai_connector):
+    def __init__(self, openai_connector: OpenAiConnector):
         self.openai_connector = openai_connector
         self.audio_service = AudioService(openai_connector)
 
         self.conversation_history = [{"role": "system", "content": "You are a helpful assistant."}]
 
-    def format_and_print_content(self, content):
+    def format_and_print_content(self, content: str):
         """Formats content for console output."""
         formatted_content = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
         sys.stdout.write(formatted_content)
         sys.stdout.flush()
 
-    def collect_until_sentence_end(self, text_buffer):
+    def collect_until_sentence_end(self, text_buffer: str):
         """Collect text until a sentence end is detected (., !, ?)."""
         match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
         if match:
@@ -28,7 +30,7 @@ class ChatService:
                                               match.end():]  # Return the sentence and the remaining text
         return "", text_buffer
 
-    def talk_with_chat_gpt(self, user_input, conversation_history):
+    def talk_with_chat_gpt(self, user_input: str, conversation_history):
         """Stream GPT responses and handle function calls like executing system commands."""
 
         # Starte den Audio-Thread
@@ -45,7 +47,7 @@ class ChatService:
         )
 
         # Verarbeite den GPT-Stream
-        assistant_reply = self.process_gpt_stream(stream, self.audio_service)
+        assistant_reply = self.process_gpt_stream(stream)
 
         # Signalisiere das Ende des Streams
         self.audio_service.stop_audio()
@@ -58,7 +60,7 @@ class ChatService:
 
         return assistant_reply
 
-    def process_gpt_stream(self, stream, audio_service):
+    def process_gpt_stream(self, stream):
         """Verarbeite GPT-Stream und führe Sprachverarbeitung aus."""
         text_buffer = ""
         assistant_reply = ""
@@ -77,12 +79,12 @@ class ChatService:
                     # Satzende erkennen und Sprachverarbeitung starten
                     sentence, remaining_text = self.collect_until_sentence_end(text_buffer)
                     if sentence:
-                        future = executor.submit(audio_service.process_speech, sentence)
+                        future = executor.submit(self.audio_service.process_speech, sentence)
                         text_buffer = remaining_text
 
             # Verarbeite verbleibenden Text (falls es kein ganzer Satz war).
             if text_buffer:
-                future = executor.submit(audio_service.process_speech, text_buffer)
+                future = executor.submit(self.audio_service.process_speech, text_buffer)
 
             if future:
                 future.result()

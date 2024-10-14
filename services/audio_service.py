@@ -1,29 +1,34 @@
-import logging
-import sounddevice as sd
-import queue
-import threading
-import subprocess
-import os
-import time
-import sys
 import itertools
-import webrtcvad
+import logging
+import os
+import queue
+import subprocess
+import sys
+import threading
+import time
+
 import numpy as np
 import scipy.io.wavfile as wav
+import sounddevice as sd
+import webrtcvad
+
+from connectors.open_ai_connector import OpenAiConnector
+
 
 class SilenceDetection(Exception):
     """Exception raised when no speech is detected within a specified time."""
     pass
 
+
 class AudioService:
-    def __init__(self, open_ai_connector):
+    def __init__(self, open_ai_connector: OpenAiConnector):
         self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
 
         self.logger = logging.getLogger(__name__)
 
-    def play_sound(self, file_path):
+    def play_sound(self, file_path: str):
         if not os.path.isfile(file_path):
             self.logger.error(f"File {file_path} not found!")
             return
@@ -84,7 +89,7 @@ class AudioService:
                 else:
                     if recording_started:
                         if silence_duration < max_silence_duration:
-                            silence_duration += frame_duration_ms / 1000  # Count silence only after speech starts
+                            silence_duration += frame_duration_ms / 1000
 
                 # If too much silence is detected after recording started, stop recording
                 if recording_started and silence_duration > max_silence_duration:
@@ -109,7 +114,7 @@ class AudioService:
 
         return vad.is_speech(frame.tobytes(), sample_rate)
 
-    def simple_speak(self, text):
+    def simple_speak(self, text: str):
         samplerate = 24000  # Set the sample rate to match the response
         chunk_size = 1024  # Original chunk size
         buffer_size = 100  # Collect chunks before playing
@@ -148,7 +153,7 @@ class AudioService:
 
             sd.wait()
 
-    def transcribe_audio(self, audio_file_path):
+    def transcribe_audio(self, audio_file_path: str):
         """Transcribe the audio file using OpenAI's Whisper API."""
         with open(audio_file_path, 'rb') as audio_file:
             self.logger.info("Sending audio to OpenAI for transcription...")
@@ -158,7 +163,7 @@ class AudioService:
             )
             return transcription.text
 
-    def process_speech(self, text):
+    def process_speech(self, text: str):
         logging.info("Sending sentence to openAi-API to convert to audio.")
         """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
         with self.transcription_lock:
@@ -194,10 +199,10 @@ class AudioService:
         """Sendet ein Endsignal an die Queue, um die Wiedergabe zu stoppen."""
         self.audio_queue.put(None)
 
-    def save_audio_to_wav(self, audio, sample_rate, filename):
+    def save_audio_to_wav(self, audio, sample_rate, filename: str):
         """Save the recorded audio to a WAV file."""
         wav.write(filename, sample_rate, audio)
 
-    def delete_wav_file(self, filename):
+    def delete_wav_file(self, filename: str):
         if os.path.exists(filename):
             os.remove(filename)
