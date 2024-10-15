@@ -14,10 +14,9 @@ import sounddevice as sd
 import webrtcvad
 
 # Local application imports
-from src.connectors.open_ai_connector import OpenAiConnector
-from src.entities.audio_record_result import AudioRecordResult
-from src.exceptions.audio_recording_failed import AudioRecordingFailed
-from src.exceptions.audio_transcription_failed import AudioTranscriptionFailed
+from src.connectors import OpenAiConnector
+from src.entities import AudioRecordResult
+from src.exceptions import AudioRecordingFailed, AudioTranscriptionFailed
 
 
 class AudioService:

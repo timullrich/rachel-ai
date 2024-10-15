@@ -5,10 +5,9 @@ from typing import List, Dict
 
 from dotenv import load_dotenv
 
-from src.connectors.open_ai_connector import OpenAiConnector
-from src.services.chat_service import ChatService
-from src.services.audio_service import AudioService
-from src.entities.audio_record_result import AudioRecordResult
+from src.connectors import OpenAiConnector
+from src.services import ChatService, AudioService
+from src.entities import AudioRecordResult
 
 
 def setup_logging() -> logging.Logger:

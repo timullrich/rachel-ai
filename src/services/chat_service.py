@@ -5,8 +5,8 @@ import concurrent.futures
 from typing import List, Tuple, Dict, Any
 
 from colorama import Fore, Style
-from src.connectors.open_ai_connector import OpenAiConnector
-from src.services.audio_service import AudioService
+from src.connectors import OpenAiConnector
+from src.services import AudioService
 
 
 class ChatService:
