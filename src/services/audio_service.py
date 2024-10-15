@@ -73,7 +73,8 @@ class AudioService:
             raise
 
     def record(self) -> AudioRecordResult:
-        """Record audio dynamically, start only when speech is detected, stop after 1 second of silence.
+        """Record audio dynamically, start only when speech is
+            detected, stop after 1 second of silence.
         Raises:
             AudioRecordingFailed: If no audio was captured during the recording.
         """
@@ -180,10 +181,6 @@ class AudioService:
                     stream.write(complete_audio)
 
             sd.wait()
-
-    import io
-    import wave
-    import numpy as np
 
     def transcribe_audio(self, record_result: AudioRecordResult, language: str) -> str:
         """Transcribe the recorded audio data using OpenAI's Whisper API."""

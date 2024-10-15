@@ -14,7 +14,8 @@ class ChatService:
         self.openai_connector: OpenAiConnector = openai_connector
         self.audio_service: AudioService = AudioService(openai_connector)
 
-        self.conversation_history: List[Dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
+        self.conversation_history: List[Dict[str, str]] = \
+            [{"role": "system", "content": "You are a helpful assistant."}]
 
     def format_and_print_content(self, content: str) -> None:
         """Formats content for console output."""
@@ -26,7 +27,8 @@ class ChatService:
         """Collect text until a sentence end is detected (., !, ?)."""
         match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
         if match:
-            return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
+            # Return the sentence and the remaining text
+            return text_buffer[:match.end()], text_buffer[match.end():]
         return "", text_buffer
 
     def talk_with_chat_gpt(self, user_input: str,
