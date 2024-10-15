@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from src.connectors.open_ai_connector import OpenAiConnector
 from src.services.chat_service import ChatService
 from src.services.audio_service import AudioService
+from src.entities.audio_record_result import AudioRecordResult
 
 
 def setup_logging() -> logging.Logger:
@@ -32,12 +33,11 @@ if __name__ == "__main__":
     load_dotenv()
 
     platform: str = os.getenv("PLATFORM", "raspberry-pi")
-    user_language = os.getenv("USER_LANGUAGE", "en")
-    sound_theme = os.getenv("SOUND_THEME", "default")
+    user_language: str = os.getenv("USER_LANGUAGE", "en")
+    sound_theme: str = os.getenv("SOUND_THEME", "default")
     script_dir: str = os.path.dirname(os.path.realpath(__file__))
 
     sample_rate: int = 16000  # Standard sample rate for Whisper
-    recorded_wav_file: str = "record.wav"
 
     conversation_history: List[Dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     open_ai_connector: OpenAiConnector = OpenAiConnector(openai_api_key)
 
     # Init services
-    chat_service: ChatService = ChatService(open_ai_connector)
+    chat_service = ChatService(open_ai_connector)
     audio_service = AudioService(
         open_ai_connector,
         user_language=user_language,
@@ -58,31 +58,24 @@ if __name__ == "__main__":
             audio_service.play_sound("sent")
 
             # Start recording
-            result = audio_service.record()
+            user_input_audio: AudioRecordResult = audio_service.record()
 
             # Handle silence timeout (3 seconds with no speech)
-            if result.silence_timeout:
+            if user_input_audio.silence_timeout:
                 logger.info("No speech detected for 3 seconds. Exiting...")
                 audio_service.play_sound("standby")
                 sys.exit()  # Exit the entire script
 
-            # Save audio and transcribe it
-            audio_service.save_audio_to_wav(result.data, sample_rate, recorded_wav_file)
+            # transcribe audio result
             audio_service.play_sound("sent")
 
-            # Transcribe the saved audio file using OpenAI API
-            user_input = audio_service.transcribe_audio(recorded_wav_file, user_language)
+            # Transcribe the AudioRecordResult using OpenAI API
+            user_input_text: str = audio_service.transcribe_audio(user_input_audio, user_language)
 
-            # Handle transcription result
-            if not user_input:
-                logger.error("Transcription failed. Restarting...")
-                continue  # Restart the loop if transcription failed
-
-            audio_service.delete_wav_file(recorded_wav_file)
-            print(f"You: {user_input}")
+            print(f"You: {user_input_text}")
 
             # Stream the transcribed input to GPT and speak it in real-time
-            reply: str = chat_service.talk_with_chat_gpt(user_input, conversation_history)
+            reply: str = chat_service.talk_with_chat_gpt(user_input_text, conversation_history)
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")

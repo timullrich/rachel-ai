@@ -6,13 +6,15 @@ import threading
 import time
 
 import numpy as np
-import scipy.io.wavfile as wav
 import sounddevice as sd
 import webrtcvad
+import io
+import wave
 
 from src.connectors.open_ai_connector import OpenAiConnector
 from src.entities.audio_record_result import AudioRecordResult
 from src.exceptions.audio_recording_failed import AudioRecordingFailed
+from src.exceptions.audio_transcription_failed import AudioTranscriptionFailed
 
 
 class AudioService:
@@ -168,21 +170,42 @@ class AudioService:
 
             sd.wait()
 
-    def transcribe_audio(self, audio_file_path: str, language: str="en") -> str:
-        """Transcribe the audio file using OpenAI's Whisper API."""
+    import io
+    import wave
+    import numpy as np
+
+    def transcribe_audio(self, record_result: AudioRecordResult, language: str) -> str:
+        """Transcribe the recorded audio data using OpenAI's Whisper API."""
+
+        if not record_result.success or record_result.data is None:
+            raise AudioTranscriptionFailed("No valid audio data to transcribe.")
+
         try:
-            with open(audio_file_path, 'rb') as audio_file:
-                self.logger.info(
-                    f"Sending audio to OpenAI for transcription using language {language}...")
-                transcription = self.open_ai_connector.client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language=language
-                )
-                return transcription.text
-        except FileNotFoundError:
-            self.logger.error(f"Audio file not found: {audio_file_path}")
-            raise
+            # Create a BytesIO buffer to hold the audio data in memory
+            audio_buffer = io.BytesIO()
+
+            # Write the NumPy audio data into the buffer as WAV using the 'wave' module
+            with wave.open(audio_buffer, 'wb') as wav_file:
+                wav_file.setnchannels(1)  # Mono
+                wav_file.setsampwidth(2)  # 16-bit Audio (2 Bytes)
+                wav_file.setframerate(16000)  # Sample Rate 16000 Hz
+                wav_file.writeframes(record_result.data.tobytes())
+
+            # Reset the buffer position to the beginning
+            audio_buffer.seek(0)
+
+            self.logger.info("Sending audio to OpenAI for transcription...")
+
+            # Send the audio file as a tuple with a filename, file content, and MIME type to the API
+            transcription = self.open_ai_connector.client.audio.transcriptions.create(
+                model="whisper-1",
+                file=("audio.wav", audio_buffer, "audio/wav"),
+                # Filename, file content, and MIME type
+                language=language
+            )
+
+            return transcription.text
+
         except Exception as e:
             self.logger.error(f"An error occurred during transcription: {e}")
             raise
@@ -244,11 +267,3 @@ class AudioService:
         """Sends an end signal to the queue to stop the playback."""
         self.audio_queue.put(None)  # Sends the stop signal
         self.logger.info("Stop signal sent to audio queue.")
-
-    def save_audio_to_wav(self, audio: np.ndarray, sample_rate: int, filename: str) -> None:
-        """Save the recorded audio to a WAV file."""
-        wav.write(filename, sample_rate, audio)
-
-    def delete_wav_file(self, filename: str) -> None:
-        if os.path.exists(filename):
-            os.remove(filename)
