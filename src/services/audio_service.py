@@ -1,16 +1,19 @@
+# Standard library imports
 import logging
 import os
 import queue
 import subprocess
 import threading
 import time
-
-import numpy as np
-import sounddevice as sd
-import webrtcvad
 import io
 import wave
 
+# Third-party imports
+import numpy as np
+import sounddevice as sd
+import webrtcvad
+
+# Local application imports
 from src.connectors.open_ai_connector import OpenAiConnector
 from src.entities.audio_record_result import AudioRecordResult
 from src.exceptions.audio_recording_failed import AudioRecordingFailed
@@ -18,6 +21,14 @@ from src.exceptions.audio_transcription_failed import AudioTranscriptionFailed
 
 
 class AudioService:
+    """
+    The AudioService class handles recording audio with speech detection,
+    converting text to speech using OpenAI, playing audio from a queue,
+    and transcribing recorded audio using OpenAI's Whisper API. It also
+    manages audio playback, processes audio in real-time, and handles
+    sound themes for different notifications.
+    """
+
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
     def __init__(

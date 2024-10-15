@@ -31,19 +31,20 @@ if __name__ == "__main__":
 
     # Load environment variables from .env file
     load_dotenv()
-
     platform: str = os.getenv("PLATFORM", "raspberry-pi")
     user_language: str = os.getenv("USER_LANGUAGE", "en")
     sound_theme: str = os.getenv("SOUND_THEME", "default")
+
     script_dir: str = os.path.dirname(os.path.realpath(__file__))
-
-    sample_rate: int = 16000  # Standard sample rate for Whisper
-
-    conversation_history: List[Dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
     # Init OpenAiConnector
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     open_ai_connector: OpenAiConnector = OpenAiConnector(openai_api_key)
+
+    # application variables
+    sample_rate: int = 16000  # Standard sample rate for Whisper
+    conversation_history: List[Dict[str, str]] = [
+        {"role": "system", "content": "You are a helpful assistant."}]
 
     # Init services
     chat_service = ChatService(open_ai_connector)
@@ -53,6 +54,10 @@ if __name__ == "__main__":
         sound_theme=sound_theme
     )
 
+    # This block handles the main interaction loop: recording user input, transcribing it,
+    # and sending the transcribed text to ChatGPT. If no speech is detected within 3 seconds,
+    # the script exits. Otherwise, the audio is transcribed using OpenAI's Whisper API, and
+    # the response from ChatGPT is processed and played in real-time.
     try:
         while True:
             audio_service.play_sound("sent")
@@ -80,6 +85,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         sys.exit()  # Exit the entire script
-
-
-
