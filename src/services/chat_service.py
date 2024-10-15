@@ -55,7 +55,7 @@ class ChatService:
         # Wait until the audio thread finishes
         audio_thread.join()
 
-        # Add the response to conversation history
+        # Add the chatGPT response to conversation history
         conversation_history.append({"role": "assistant", "content": assistant_reply})
 
         return assistant_reply

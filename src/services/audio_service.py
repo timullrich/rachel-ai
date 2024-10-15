@@ -25,7 +25,7 @@ class AudioService:
             sound_theme: str = "default"
     ):
         self.vad = webrtcvad.Vad()
-        self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
+        self.audio_queue = queue.Queue()  # Queue for the audio chunks
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
         self.logger = logging.getLogger(__name__)
@@ -240,10 +240,10 @@ class AudioService:
                 except Exception as e:
                     logging.error(f"Error while closing the audio stream: {e}")
 
-
     def stop_audio(self) -> None:
-        """Sends an end signal to the queue, to stop the playback."""
-        self.audio_queue.put(None)
+        """Sends an end signal to the queue to stop the playback."""
+        self.audio_queue.put(None)  # Sends the stop signal
+        self.logger.info("Stop signal sent to audio queue.")
 
     def save_audio_to_wav(self, audio: np.ndarray, sample_rate: int, filename: str) -> None:
         """Save the recorded audio to a WAV file."""
