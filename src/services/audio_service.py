@@ -57,6 +57,7 @@ class AudioService:
             sd.wait()
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error while playing sound: {e}")
+            raise
 
     def record(self) -> AudioRecordResult:
         """Record audio dynamically, start only when speech is detected, stop after 1 second of silence.
@@ -187,22 +188,30 @@ class AudioService:
             raise
 
     def process_speech(self, text: str) -> None:
-        logging.info("Sending sentence to openAi-API to convert to audio.")
-        """Konvertiert den gesamten Text in Audio und speichert es in der Queue."""
-        with self.transcription_lock:
-            with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
-                    model="tts-1",
-                    voice="nova",
-                    input=text,
-                    response_format="pcm"
-            ) as response_audio:
-                logging.info("Audio of sentence received from openAi-API.")
-                # Hole alle Audio-Daten auf einmal
-                audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
-                self.audio_queue.put(audio_data)  # Lege das gesamte Audio in die Queue
+        """Converts the entire text into audio and stores it in the queue."""
+        logging.info("Sending sentence to OpenAI-API to convert to audio.")
+
+        try:
+            with self.transcription_lock:
+                with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
+                        model="tts-1",
+                        voice="nova",
+                        input=text,
+                        response_format="pcm"
+                ) as response_audio:
+                    logging.info("Audio of sentence received from OpenAI-API.")
+
+                    audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
+                    self.audio_queue.put(audio_data)
+
+                    logging.info("Audio processing completed and added to queue.")
+
+        except Exception as e:
+            logging.error(f"Error occurred during speech processing: {e}")
+            raise
 
     def play_audio(self) -> None:
-        """Spielt kontinuierlich Audio aus der Queue ab."""
+        """Continuously plays audio from the queue."""
         stream_audio = sd.OutputStream(
             samplerate=24000, channels=1, dtype='int16')
         stream_audio.start()
