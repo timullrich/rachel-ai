@@ -32,35 +32,35 @@ class ChatService:
     def talk_with_chat_gpt(self, user_input: str, conversation_history: List[Dict[str, str]]) -> str:
         """Stream GPT responses and handle function calls like executing system commands."""
 
-        # Starte den Audio-Thread
+        # starts the audio thread (playing responses)
         audio_thread: threading.Thread = threading.Thread(target=self.audio_service.play_audio)
         audio_thread.start()
 
         conversation_history.append({"role": "user", "content": user_input})
 
-        # GPT-Antwort streamen
+        # stream chatGPT-response
         stream = self.openai_connector.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=conversation_history,
             stream=True
         )
 
-        # Verarbeite den GPT-Stream
+        # process the chatGPT-Stream
         assistant_reply: str = self.process_gpt_stream(stream)
 
-        # Signalisiere das Ende des Streams
+        # signaling end of stream
         self.audio_service.stop_audio()
 
-        # Warte, bis der Audio-Thread beendet ist
+        # wait until audio stream ended
         audio_thread.join()
 
-        # Füge die Antwort in den Gesprächsverlauf ein
+        # adding the reponse to conversation history
         conversation_history.append({"role": "assistant", "content": assistant_reply})
 
         return assistant_reply
 
     def process_gpt_stream(self, stream: Any) -> str:
-        """Verarbeite GPT-Stream und führe Sprachverarbeitung aus."""
+        """process chatGPT-Stream and excecute speech processing."""
         text_buffer: str = ""
         assistant_reply: str = ""
 
@@ -81,7 +81,7 @@ class ChatService:
                         future = executor.submit(self.audio_service.process_speech, sentence)
                         text_buffer = remaining_text
 
-            # Verarbeite verbleibenden Text (falls es kein ganzer Satz war).
+            # process remaining text (e.g. no complete sentence)
             if text_buffer:
                 future = executor.submit(self.audio_service.process_speech, text_buffer)
 
