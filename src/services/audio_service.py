@@ -210,25 +210,39 @@ class AudioService:
             logging.error(f"Error occurred during speech processing: {e}")
             raise
 
-    def play_audio(self) -> None:
+    def play_audio(self, samplerate: int = 24000, channels: int = 1) -> None:
         """Continuously plays audio from the queue."""
-        stream_audio = sd.OutputStream(
-            samplerate=24000, channels=1, dtype='int16')
-        stream_audio.start()
+        stream_audio = None
 
-        while True:
-            audio_data = self.audio_queue.get()  # Blockiert, bis ein Item verfügbar ist
-            if audio_data is None:  # Endsignal
-                break
-            stream_audio.write(audio_data)  # Audio-Daten in den Stream schreiben
-            sd.wait()
+        try:
+            stream_audio = sd.OutputStream(
+                samplerate=samplerate, channels=channels, dtype='int16'
+            )
+            stream_audio.start()
 
-        stream_audio.stop()
-        stream_audio.close()
-        sd.wait()
+            while True:
+                audio_data = self.audio_queue.get()  # blocks until item is avialable
+                if audio_data is None:  # end signal
+                    break
+
+                stream_audio.write(audio_data)  # write audio data into stream
+
+        except Exception as e:
+            logging.error(f"Error occurred during audio playback: {e}")
+
+        finally:
+            if stream_audio is not None:
+                try:
+                    stream_audio.stop()
+                    stream_audio.close()
+                    sd.wait()  # wait until all audio buffers are played
+                    logging.info("Audio playback finished and stream closed.")
+                except Exception as e:
+                    logging.error(f"Error while closing the audio stream: {e}")
+
 
     def stop_audio(self) -> None:
-        """Sendet ein Endsignal an die Queue, um die Wiedergabe zu stoppen."""
+        """Sends an end signal to the queue, to stop the playback."""
         self.audio_queue.put(None)
 
     def save_audio_to_wav(self, audio: np.ndarray, sample_rate: int, filename: str) -> None:

@@ -29,32 +29,33 @@ class ChatService:
             return text_buffer[:match.end()], text_buffer[match.end():]  # Return the sentence and the remaining text
         return "", text_buffer
 
-    def talk_with_chat_gpt(self, user_input: str, conversation_history: List[Dict[str, str]]) -> str:
+    def talk_with_chat_gpt(self, user_input: str,
+                           conversation_history: List[Dict[str, str]]) -> str:
         """Stream GPT responses and handle function calls like executing system commands."""
 
-        # starts the audio thread (playing responses)
+        # Start the audio thread (playing responses)
         audio_thread: threading.Thread = threading.Thread(target=self.audio_service.play_audio)
         audio_thread.start()
 
         conversation_history.append({"role": "user", "content": user_input})
 
-        # stream chatGPT-response
+        # Stream ChatGPT response
         stream = self.openai_connector.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=conversation_history,
             stream=True
         )
 
-        # process the chatGPT-Stream
+        # Process the ChatGPT-Stream
         assistant_reply: str = self.process_gpt_stream(stream)
 
-        # signaling end of stream
+        # Signal the end of the audio stream by sending a 'None' signal to stop the audio thread
         self.audio_service.stop_audio()
 
-        # wait until audio stream ended
+        # Wait until the audio thread finishes
         audio_thread.join()
 
-        # adding the reponse to conversation history
+        # Add the response to conversation history
         conversation_history.append({"role": "assistant", "content": assistant_reply})
 
         return assistant_reply
