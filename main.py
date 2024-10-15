@@ -32,6 +32,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     platform: str = os.getenv("PLATFORM", "raspberry-pi")
+    user_language = os.getenv("USER_LANGUAGE", "en")
     sound_theme = os.getenv("SOUND_THEME", "default")
     script_dir: str = os.path.dirname(os.path.realpath(__file__))
 
@@ -46,7 +47,11 @@ if __name__ == "__main__":
 
     # Init services
     chat_service: ChatService = ChatService(open_ai_connector)
-    audio_service = AudioService(open_ai_connector, sound_theme=sound_theme)
+    audio_service = AudioService(
+        open_ai_connector,
+        user_language=user_language,
+        sound_theme=sound_theme
+    )
 
     try:
         while True:

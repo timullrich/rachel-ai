@@ -17,12 +17,18 @@ from src.exceptions.audio_recording_failed import AudioRecordingFailed
 class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
-    def __init__(self, open_ai_connector: OpenAiConnector, sound_theme: str = "default"):
+    def __init__(
+            self,
+            open_ai_connector: OpenAiConnector,
+            user_language="en",
+            sound_theme: str = "default"
+    ):
         self.vad = webrtcvad.Vad()
         self.audio_queue = queue.Queue()  # Queue für Audio-Chunks
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
         self.logger = logging.getLogger(__name__)
+        self.user_language = user_language
         self.sound_theme = sound_theme
         self.base_sound_path = os.path.join("resources", "sounds", "themes", self.sound_theme)
 
@@ -166,7 +172,8 @@ class AudioService:
             self.logger.info("Sending audio to OpenAI for transcription...")
             transcription = self.open_ai_connector.client.audio.transcriptions.create(
                 model="whisper-1",
-                file=audio_file
+                file=audio_file,
+                language="de"
             )
             return transcription.text
 
