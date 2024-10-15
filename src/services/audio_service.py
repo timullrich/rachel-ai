@@ -1,21 +1,18 @@
-import itertools
 import logging
 import os
 import queue
 import subprocess
-import sys
 import threading
 import time
-from typing import Optional, Union
 
 import numpy as np
 import scipy.io.wavfile as wav
 import sounddevice as sd
 import webrtcvad
 
-from connectors.open_ai_connector import OpenAiConnector
-from entities.audio_record_result import AudioRecordResult
-from exceptions.audio_recording_failed import AudioRecordingFailed
+from src.connectors.open_ai_connector import OpenAiConnector
+from src.entities.audio_record_result import AudioRecordResult
+from src.exceptions.audio_recording_failed import AudioRecordingFailed
 
 class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}

@@ -5,9 +5,9 @@ from typing import List, Dict
 
 from dotenv import load_dotenv
 
-from connectors.open_ai_connector import OpenAiConnector
-from services.chat_service import ChatService
-from services.audio_service import AudioService, AudioRecordingFailed
+from src.connectors.open_ai_connector import OpenAiConnector
+from src.services.chat_service import ChatService
+from src.services.audio_service import AudioService, AudioRecordingFailed
 
 
 def setup_logging() -> logging.Logger:
