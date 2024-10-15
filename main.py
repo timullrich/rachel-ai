@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from src.connectors.open_ai_connector import OpenAiConnector
 from src.services.chat_service import ChatService
-from src.services.audio_service import AudioService, AudioRecordingFailed
+from src.services.audio_service import AudioService
 
 
 def setup_logging() -> logging.Logger:
@@ -57,34 +57,36 @@ if __name__ == "__main__":
         while True:
             audio_service.play_sound("sent")
 
-            # Start recording and handle result
-            try:
-                result = audio_service.record()
+            # Start recording
+            result = audio_service.record()
 
-                if result.silence_timeout:
-                    logger.info("No speech detected for 3 seconds. Exiting...")
-                    audio_service.play_sound("standby")
-                    sys.exit()  # Exit the entire script
+            # Handle silence timeout (3 seconds with no speech)
+            if result.silence_timeout:
+                logger.info("No speech detected for 3 seconds. Exiting...")
+                audio_service.play_sound("standby")
+                sys.exit()  # Exit the entire script
 
-                # Successful recording: Save audio and transcribe it
-                audio_service.save_audio_to_wav(result.data, sample_rate, recorded_wav_file)
-                audio_service.play_sound("sent")
+            # Save audio and transcribe it
+            audio_service.save_audio_to_wav(result.data, sample_rate, recorded_wav_file)
+            audio_service.play_sound("sent")
 
-                # Transcribe the saved audio file using OpenAI API
-                user_input: str = audio_service.transcribe_audio(recorded_wav_file)
-                audio_service.delete_wav_file(recorded_wav_file)
+            # Transcribe the saved audio file using OpenAI API
+            user_input = audio_service.transcribe_audio(recorded_wav_file, user_language)
 
-                print(f"You: {user_input}")
+            # Handle transcription result
+            if not user_input:
+                logger.error("Transcription failed. Restarting...")
+                continue  # Restart the loop if transcription failed
 
-                # Stream the transcribed input to GPT and speak it in real-time
-                reply: str = chat_service.talk_with_chat_gpt(user_input, conversation_history)
+            audio_service.delete_wav_file(recorded_wav_file)
+            print(f"You: {user_input}")
 
-            except AudioRecordingFailed as e:
-                logger.error(f"Recording failed: {e}")
-                continue  # Schleife erneut starten
+            # Stream the transcribed input to GPT and speak it in real-time
+            reply: str = chat_service.talk_with_chat_gpt(user_input, conversation_history)
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")
         sys.exit()  # Exit the entire script
+
 
 

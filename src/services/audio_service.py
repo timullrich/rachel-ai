@@ -14,6 +14,7 @@ from src.connectors.open_ai_connector import OpenAiConnector
 from src.entities.audio_record_result import AudioRecordResult
 from src.exceptions.audio_recording_failed import AudioRecordingFailed
 
+
 class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
@@ -166,16 +167,24 @@ class AudioService:
 
             sd.wait()
 
-    def transcribe_audio(self, audio_file_path: str) -> str:
+    def transcribe_audio(self, audio_file_path: str, language: str="en") -> str:
         """Transcribe the audio file using OpenAI's Whisper API."""
-        with open(audio_file_path, 'rb') as audio_file:
-            self.logger.info("Sending audio to OpenAI for transcription...")
-            transcription = self.open_ai_connector.client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                language="de"
-            )
-            return transcription.text
+        try:
+            with open(audio_file_path, 'rb') as audio_file:
+                self.logger.info(
+                    f"Sending audio to OpenAI for transcription using language {language}...")
+                transcription = self.open_ai_connector.client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language=language
+                )
+                return transcription.text
+        except FileNotFoundError:
+            self.logger.error(f"Audio file not found: {audio_file_path}")
+            raise
+        except Exception as e:
+            self.logger.error(f"An error occurred during transcription: {e}")
+            raise
 
     def process_speech(self, text: str) -> None:
         logging.info("Sending sentence to openAi-API to convert to audio.")
