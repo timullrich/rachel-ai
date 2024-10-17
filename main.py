@@ -1,13 +1,17 @@
 import logging
 import os
 import sys
-from typing import List, Dict
+import threading
+from typing import List, Dict, Any
 
+# 3rd party libraries
+from colorama import Fore, Style
 from dotenv import load_dotenv
 
-from src.connectors import OpenAiConnector
-from src.services import ChatService, AudioService
+# local modules
+from src.connectors import OpenAiConnector, StreamSplitter
 from src.entities import AudioRecordResult
+from src.services import AudioService, ChatService
 
 
 def setup_logging() -> logging.Logger:
@@ -22,6 +26,13 @@ def setup_logging() -> logging.Logger:
     )
     logger = logging.getLogger(__name__)
     return logger
+
+
+def format_and_print_content(self, content: str) -> None:
+    """Formats content for console output."""
+    formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
+    sys.stdout.write(formatted_content)
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":
@@ -41,7 +52,6 @@ if __name__ == "__main__":
     open_ai_connector: OpenAiConnector = OpenAiConnector(openai_api_key)
 
     # application variables
-    sample_rate: int = 16000  # Standard sample rate for Whisper
     conversation_history: List[Dict[str, str]] = [
         {"role": "system", "content": "You are a helpful assistant."}]
 
@@ -53,15 +63,11 @@ if __name__ == "__main__":
         sound_theme=sound_theme
     )
 
-    # This block handles the main interaction loop: recording user input, transcribing it,
-    # and sending the transcribed text to ChatGPT. If no speech is detected within 3 seconds,
-    # the script exits. Otherwise, the audio is transcribed using OpenAI's Whisper API, and
-    # the response from ChatGPT is processed and played in real-time.
     try:
         while True:
             audio_service.play_sound("sent")
 
-            # Start recording
+            # Start user input recording and saves the input into user_input_audio
             user_input_audio: AudioRecordResult = audio_service.record()
 
             # Handle silence timeout (3 seconds with no speech)
@@ -70,16 +76,30 @@ if __name__ == "__main__":
                 audio_service.play_sound("standby")
                 sys.exit()  # Exit the entire script
 
-            # transcribe audio result
-            audio_service.play_sound("sent")
-
-            # Transcribe the AudioRecordResult using OpenAI API
+            # Transcribe the AudioRecordResult using OpenAI's Whisper API
             user_input_text: str = audio_service.transcribe_audio(user_input_audio, user_language)
-
             print(f"You: {user_input_text}")
 
-            # Stream the transcribed input to GPT and speak it in real-time
-            reply: str = chat_service.talk_with_chat_gpt(user_input_text, conversation_history)
+            # Stream the transcribed input to GPT and handle the response
+            stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+
+            # Create a StreamSplitter to share the stream
+            splitter = StreamSplitter(stream)
+            splitter.start()
+
+            # Start the threads for text and audio playback
+            text_output_thread = threading.Thread(
+                target=chat_service.print_stream_text, args=(splitter.get(),))
+
+            audio_output_thread = threading.Thread(
+                target=audio_service.play_stream_audio, args=(splitter.get(),))
+
+            text_output_thread.start()
+            audio_output_thread.start()
+
+            # Wait for both threads to complete
+            text_output_thread.join()
+            audio_output_thread.join()
 
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}")

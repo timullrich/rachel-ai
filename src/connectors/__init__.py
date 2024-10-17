@@ -1,5 +1,6 @@
-from .open_ai_connector import OpenAiConnector
+from .openai import OpenAiConnector, StreamSplitter
 
 __all__ = [
     "OpenAiConnector",
+    "StreamSplitter",
 ]

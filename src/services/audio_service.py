@@ -1,12 +1,15 @@
 # Standard library imports
+import concurrent.futures
+import io
 import logging
 import os
 import queue
+import re
 import subprocess
 import threading
 import time
-import io
 import wave
+from typing import Any, Tuple
 
 # Third-party imports
 import numpy as np
@@ -269,6 +272,53 @@ class AudioService:
                     logging.info("Audio playback finished and stream closed.")
                 except Exception as e:
                     logging.error(f"Error while closing the audio stream: {e}")
+
+    def collect_until_sentence_end(self, text_buffer: str) -> Tuple[str, str]:
+        """Collect text until a sentence end is detected (., !, ?)."""
+        match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
+        if match:
+            # Return the sentence and the remaining text
+            return text_buffer[:match.end()], text_buffer[match.end():]
+        return "", text_buffer
+
+    def play_stream_audio(self, stream: Any, samplerate: int = 24000, channels: int = 1) -> None:
+        """Stream GPT responses and handle function calls like executing system commands."""
+
+        # Start the audio thread (playing responses)
+        audio_thread: threading.Thread = threading.Thread(target=self.play_audio)
+        audio_thread.start()
+
+        # Process the stream
+        text_buffer: str = ""
+        assistant_reply: str = ""
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future: concurrent.futures.Future = None
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None:
+                    content: str = chunk.choices[0].delta.content
+
+                    assistant_reply += content
+                    text_buffer += content
+
+                    # Satzende erkennen und Sprachverarbeitung starten
+                    sentence, remaining_text = self.collect_until_sentence_end(text_buffer)
+                    if sentence:
+                        future = executor.submit(self.process_speech, sentence)
+                        text_buffer = remaining_text
+
+            # process remaining text (e.g. no complete sentence)
+            if text_buffer:
+                future = executor.submit(self.process_speech, text_buffer)
+
+            if future:
+                future.result()
+
+        # Signal the end of the audio stream by sending a 'None' signal to stop the audio thread
+        self.stop_audio()
+
+        # Wait until the audio thread finishes
+        audio_thread.join()
 
     def stop_audio(self) -> None:
         """Sends an end signal to the queue to stop the playback."""
