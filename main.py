@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.entities import AudioRecordResult
 from src.services import AudioService, ChatService
+from src.executors import CommandExecutor
 
 
 def setup_logging() -> logging.Logger:
@@ -55,8 +56,18 @@ if __name__ == "__main__":
     conversation_history: List[Dict[str, str]] = [
         {"role": "system", "content": "You are a helpful assistant."}]
 
+    # Register available task executors
+    executors = [
+        CommandExecutor(),
+        # Other executors like EmailExecuter(), ReminderExecuter(), etc.
+    ]
+
     # Init services
-    chat_service = ChatService(open_ai_connector)
+    chat_service = ChatService(
+        open_ai_connector,
+        user_language=user_language,
+        executors=executors
+    )
     audio_service = AudioService(
         open_ai_connector,
         user_language=user_language,
