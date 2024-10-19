@@ -86,8 +86,12 @@ class AudioService:
             self.logger.error(f"Error while playing sound '{sound_key}': {e}")
             raise
 
-    def record(self, sample_rate: int = 16000, frame_duration_ms: int = 30,
-               max_silence_duration: float = 1.0) -> AudioRecordResult:
+    def record(
+            self,
+            sample_rate: int = 16000,
+            frame_duration_ms: int = 30,
+            max_silence_duration: float = 1.0
+    ) -> AudioRecordResult:
         """
         Records audio dynamically, starting only when speech is detected,
         and stopping after 1 second of silence.
@@ -96,8 +100,10 @@ class AudioService:
             AudioRecordingFailed: If no audio was captured during the recording.
 
         :param sample_rate: The sample rate for audio recording (default: 16000 Hz).
-        :param frame_duration_ms: Frame size in milliseconds (must be 10, 20, or 30, default: 30 ms).
-        :param max_silence_duration: Duration in seconds after which recording stops when no speech is detected (default: 1 second).
+        :param frame_duration_ms: Frame size in milliseconds
+                    (must be 10, 20, or 30, default: 30 ms).
+        :param max_silence_duration: Duration in seconds after which recording stops when no
+                    speech is detected (default: 1 second).
         :return: AudioRecordResult containing success state and the recorded audio data.
         """
 
@@ -155,7 +161,8 @@ class AudioService:
         Check if the audio frame contains speech using webrtcvad.
 
         :param frame: The audio frame (NumPy array) to be checked for speech.
-        :param sample_rate: The sample rate of the audio in Hz (must be 8000, 16000, 32000, or 48000).
+        :param sample_rate: The sample rate of the audio in Hz
+                    (must be 8000, 16000, 32000, or 48000).
         :param vad_mode: Sensitivity of the VAD (Voice Activity Detection).
                          0 = most restrictive, 3 = most permissive. Default is 3.
         :return: True if speech is detected, otherwise False.
@@ -176,15 +183,22 @@ class AudioService:
             self.logger.error(f"Error in is_speech detection: {e}")
             return False
 
-    def transcribe_audio(self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000) -> str:
+    def transcribe_audio(
+            self,
+            record_result: AudioRecordResult,
+            language: str,
+            sample_rate: int = 16000
+    ) -> str:
         """
         Transcribes the recorded audio data using OpenAI's Whisper API.
 
         :param record_result: An instance of AudioRecordResult containing the recorded audio data.
-        :param language: The language of the audio to be transcribed. Must be supported by the Whisper API.
+        :param language: The language of the audio to be transcribed. Must be supported
+                            by the Whisper API.
         :param sample_rate: The sample rate for the audio recording. Default is 16000 Hz.
         :return: The transcribed text as a string.
-        :raises AudioTranscriptionFailed: If no valid audio data is available or if transcription fails.
+        :raises AudioTranscriptionFailed: If no valid audio data is available or
+                                            if transcription fails.
         """
 
         if not record_result.success or record_result.data is None:
@@ -206,7 +220,8 @@ class AudioService:
 
             # Log information about the transcription process
             self.logger.info(
-                f"Sending audio to OpenAI for transcription (language: {language}, duration: {len(record_result.data)} samples)...")
+                f"Sending audio to OpenAI for transcription"
+                f" (language: {language}, duration: {len(record_result.data)} samples)...")
 
             # Send the audio file as a tuple with a filename, file content, and MIME type to the API
             transcription = self.open_ai_connector.client.audio.transcriptions.create(
@@ -236,7 +251,8 @@ class AudioService:
         :raises: Raises an exception if the TTS process fails.
         """
         self.logger.info(
-            f"Sending sentence to OpenAI API to convert to audio (text length: {len(text)} characters).")
+            f"Sending sentence to OpenAI API to convert to audio "
+            f"(text length: {len(text)} characters).")
 
         try:
             with self.transcription_lock:
@@ -266,8 +282,9 @@ class AudioService:
 
     def play_audio(self, samplerate: int = 24000, channels: int = 1) -> None:
         """
-        Continuously plays audio data from the queue using the specified sample rate and channel count.
-        Playback ends when an empty audio signal (size 0) is received in the queue.
+        Continuously plays audio data from the queue using the specified sample
+        rate and channel count. Playback ends when an empty audio signal (size 0) is
+        received in the queue.
 
         :param samplerate: The sample rate to use for audio playback (default: 24000 Hz).
         :param channels: The number of audio channels (default: 1).
@@ -361,7 +378,8 @@ class AudioService:
                         sentence, remaining_text = self.collect_until_sentence_end(text_buffer)
                         if sentence:
                             self.logger.debug(
-                                f"Detected sentence: '{sentence}'. Submitting for speech processing.")
+                                f"Detected sentence: '{sentence}'. "
+                                f"Submitting for speech processing.")
                             future = executor.submit(self.process_speech, sentence)
                             text_buffer = remaining_text
 
@@ -400,4 +418,3 @@ class AudioService:
         except Exception as e:
             self.logger.error(f"Error occurred while sending stop signal to audio queue: {e}")
             raise
-
