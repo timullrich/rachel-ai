@@ -15,18 +15,23 @@ from src.services import AudioService, ChatService
 from src.executors import CommandExecutor
 
 
-def setup_logging() -> logging.Logger:
+def setup_logging(log_level: str = "info") -> logging.Logger:
     """Set up logging configuration."""
+
+    # Convert the log_level string into the corresponding logging level
+    numeric_log_level = getattr(logging, log_level.upper(), logging.INFO)
+
     logging.basicConfig(
-        level=logging.INFO,  # Log-Level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+        level=numeric_log_level,  # Dynamically set log level
         format='%(asctime)s [%(levelname)s] %(message)s',
         handlers=[
-            logging.FileHandler("app.log"),  # Log-Datei
-            logging.StreamHandler(sys.stdout)  # Log-Ausgabe auf die Konsole
+            logging.FileHandler("app.log"),  # Log to a file
+            logging.StreamHandler(sys.stdout)  # Log output to the console
         ]
     )
     logger = logging.getLogger(__name__)
     return logger
+
 
 
 def format_and_print_content(self, content: str) -> None:
@@ -37,12 +42,14 @@ def format_and_print_content(self, content: str) -> None:
 
 
 if __name__ == "__main__":
-    # Configure logging
-    logger: logging.Logger = setup_logging()
-
     # Load environment variables from .env file
     load_dotenv()
     platform: str = os.getenv("PLATFORM", "raspberry-pi")
+
+    # Configure logging
+    log_level: str = os.getenv("LOG_LEVEL", "info")
+    logger: logging.Logger = setup_logging(log_level)
+
     user_language: str = os.getenv("USER_LANGUAGE", "en")
     sound_theme: str = os.getenv("SOUND_THEME", "default")
 
@@ -59,7 +66,7 @@ if __name__ == "__main__":
     # Register available task executors
     executors = [
         CommandExecutor(),
-        # Other executors like EmailExecuter(), ReminderExecuter(), etc.
+        # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
     # Init services
