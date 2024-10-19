@@ -53,6 +53,15 @@ stop_flag = threading.Event()  # Flag to stop processes when wake-word is detect
 # Rotating spinner for visual feedback
 spinner = itertools.cycle(['-', '\\', '|', '/'])
 
+def execute_command(command):
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return result.stderr.strip()
+    except Exception as e:
+        return f"Error executing command: {str(e)}"
 
 def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
@@ -317,22 +326,42 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
 
     conversation_history.append({"role": "user", "content": user_input})
 
-    # Stream the response from GPT
+    # Start GPT stream with function calling enabled
     stream = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=conversation_history,
-        stream=True  # Enable streaming
+        stream=True,
+        functions=[
+            {
+                "name": "execute_command",
+                "description": "Executes a system command on the Linux OS",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The shell command to be executed"
+                        }
+                    },
+                    "required": ["command"]
+                }
+            }
+        ],
+        function_call="auto"  # GPT will automatically decide if a function should be called
     )
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = None
+
         try:
             for chunk in stream:
                 if stop_flag.is_set():  # Wenn Wakeword erkannt wird
                     executor.shutdown(wait=False)
                     break
 
-                if chunk.choices[0].delta.content is not None:
+                choice = chunk.choices[0].delta
+
+                if hasattr(choice, 'content') and choice.content is not None:
                     content = chunk.choices[0].delta.content
                     format_and_print_content(content)
 
@@ -344,9 +373,56 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
                         future = executor.submit(process_speech, client, sentence, chunk_size)
                         text_buffer = remaining_text  # Resttext für nächste Runde behalten
 
+                        # Prüfe, ob GPT eine Funktion aufrufen möchte
+                if hasattr(choice, 'function_call') and choice.function_call is not None:
+                            function_call = choice.function_call
+
+                            # Sammle den Namen der Funktion (nur einmal)
+                            if function_call_name is None and hasattr(function_call, 'name'):
+                                function_call_name = function_call.name
+
+                            # Sammle die Arguments stückweise
+                            if hasattr(function_call,
+                                       'arguments') and function_call.arguments is not None:
+                                function_call_arguments += function_call.arguments
+
+                            # Prüfe, ob die Arguments vollständig sind (einfacher Ansatz)
+                            if function_call_arguments.endswith('}'):
+                                function_call_detected = True  # Setze das Flag, um die Funktion nur einmal auszuführen
+
+                                # Jetzt können wir die gesammelten Arguments parsen
+                                try:
+                                    # Entferne mögliche zusätzliche Leerzeichen
+                                    arguments_str = function_call_arguments.strip()
+                                    # Parsen der Arguments aus dem String
+                                    import json
+                                    arguments = json.loads(arguments_str)
+                                    command = arguments.get('command')
+                                    print('command')
+                                    print(command)
+                                    if command:
+                                        print(f"Executing command: {command}")
+                                        command_output = execute_command(command)
+                                        print(f"Command output: {command_output}")
+
+                                        # Sende die Befehlsausgabe zur weiteren Verarbeitung an ChatGPT
+                                        conversation_history.append(
+                                            {"role": "function", "name": function_call_name,
+                                             "content": command_output})
+
+                                        # Hole die finale Antwort von ChatGPT basierend auf der Befehlsausgabe
+                                        reply = client.chat.completions.create(
+                                            model="gpt-4o-mini",
+                                            messages=conversation_history
+                                        )
+                                        assistant_reply = reply.choices[0].message.content
+                                        print(assistant_reply)
+                                        return assistant_reply
+                                except Exception as e:
+                                    print(f"Error parsing function arguments: {e}")
 
             if stop_flag.is_set():
-                print("Skipping future.result() due to stop flag")
+                    print("Skipping future.result() due to stop flag")
             elif future:
                 future.result()
 
@@ -357,7 +433,6 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
             if stop_flag.is_set():
                 executor.shutdown(wait=False)
                 audio_queue.put(None)
-
 
     # Signal the end of the stream
     audio_queue.put(None)
@@ -377,6 +452,7 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
     print('\n')
 
     return assistant_reply
+
 
 
 if __name__ == "__main__":
