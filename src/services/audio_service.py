@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 import wave
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 
 # Third-party imports
 import numpy as np
@@ -36,156 +36,156 @@ class AudioService:
     def __init__(
             self,
             open_ai_connector: OpenAiConnector,
-            user_language="en",
+            user_language: str = "en",
             sound_theme: str = "default"
-    ):
+    ) -> None:
+        """
+        Initializes the AudioService class with the necessary dependencies.
+
+        :param open_ai_connector: An instance of OpenAiConnector for interacting with OpenAI's API.
+        :param user_language: The language in which audio interactions should occur (default: 'en').
+        :param sound_theme: The theme for sound notifications (default: 'default').
+        """
+
         self.vad = webrtcvad.Vad()
-        self.audio_queue = queue.Queue()  # Queue for the audio chunks
+        self.audio_queue: queue.Queue[np.ndarray] = queue.Queue()
         self.transcription_lock = threading.Lock()
         self.open_ai_connector = open_ai_connector
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.user_language = user_language
         self.sound_theme = sound_theme
         self.base_sound_path = os.path.join("resources", "sounds", "themes", self.sound_theme)
 
     def play_sound(self, sound_key: str) -> None:
         """Plays a sound based on the provided key."""
+
+        # Validate sound_key
         if sound_key not in self.ALLOWED_SOUND_KEYS:
-            self.logger.error(
-                f"Sound key '{sound_key}' is not allowed! Allowed keys are: "
-                f"{self.ALLOWED_SOUND_KEYS}")
-            return
+            error_message = f"Invalid sound key '{sound_key}'! " \
+                            f"Allowed keys are: {self.ALLOWED_SOUND_KEYS}"
+            self.logger.error(error_message)
+            raise ValueError(error_message)  # Raise an exception for invalid sound_key
 
         file_path = os.path.join(self.base_sound_path, f"{sound_key}.wav")
+
+        # Validate file existence
         if not os.path.isfile(file_path):
-            self.logger.error(
-                f"Sound for key '{sound_key}' not found or file {file_path} is missing!")
-            return
+            error_message = f"Sound file '{file_path}' not found for key '{sound_key}'!"
+            self.logger.error(error_message)
+            raise FileNotFoundError(error_message)  # Raise an exception if file is missing
 
         try:
+            # Play sound using ffplay
             subprocess.run(
                 ['ffplay', '-nodisp', '-autoexit', file_path],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=True
             )
-            sd.wait()
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error while playing sound: {e}")
+            self.logger.error(f"Error while playing sound '{sound_key}': {e}")
             raise
 
-    def record(self) -> AudioRecordResult:
-        """Record audio dynamically, start only when speech is
-            detected, stop after 1 second of silence.
+    def record(self, sample_rate: int = 16000, frame_duration_ms: int = 30,
+               max_silence_duration: float = 1.0) -> AudioRecordResult:
+        """
+        Records audio dynamically, starting only when speech is detected,
+        and stopping after 1 second of silence.
+
         Raises:
             AudioRecordingFailed: If no audio was captured during the recording.
+
+        :param sample_rate: The sample rate for audio recording (default: 16000 Hz).
+        :param frame_duration_ms: Frame size in milliseconds (must be 10, 20, or 30, default: 30 ms).
+        :param max_silence_duration: Duration in seconds after which recording stops when no speech is detected (default: 1 second).
+        :return: AudioRecordResult containing success state and the recorded audio data.
         """
+
         audio_frames = []
         silence_duration = 0
-        max_silence_duration = 1  # Stop recording after 1 second of silence
-        recording_started = False  # Track if recording has started after speech detection
-
-        sample_rate = 16000
-        frame_duration_ms = 30  # Frame size in ms (must be 10, 20, or 30)
+        recording_started = False
         frame_size = int(sample_rate * frame_duration_ms / 1000)
 
-        stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
-        stream.start()
-        self.logger.info("Audio stream started.")
+        # Using a context manager to ensure resources are properly managed
+        with sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16') as stream:
+            self.logger.info("Audio stream started.")
+            start_time = time.time()  # Track the start time to handle silence timeouts
 
-        start_time = time.time()  # start time, to observer x seconds silence
+            try:
+                while True:
+                    audio_frame, _ = stream.read(frame_size)
+                    audio_frames.append(audio_frame)
 
-        try:
-            while True:
-                audio_frame, _ = stream.read(frame_size)
-                audio_frames.append(audio_frame)
+                    # Detect speech in the current audio frame
+                    if self.is_speech(audio_frame, sample_rate):
+                        silence_duration = 0  # Reset silence if speech is detected
+                        if not recording_started:
+                            self.logger.info("Speech detected, starting recording...")
+                            recording_started = True
 
-                # detect speech
-                if self.is_speech(audio_frame, sample_rate):
-                    silence_duration = 0  # Reset silence duration if speech is detected
-                    if not recording_started:
-                        self.logger.info("Speech detected, starting recording...")
-                        recording_started = True
+                    # Handle timeout when no speech is detected
+                    if not recording_started and (time.time() - start_time) > 3:
+                        self.logger.info("No speech detected for 3 seconds, timeout.")
+                        return AudioRecordResult(success=False, silence_timeout=True)
 
-                # if recoring has started but 3 seconds of silence was detected
-                if not recording_started and (time.time() - start_time) > 3:
-                    self.logger.info("No speech detected for 3 seconds, timeout.")
-                    return AudioRecordResult(success=False, silence_timeout=True)
+                    # Stop recording after 1 second of silence
+                    if recording_started:
+                        if silence_duration > max_silence_duration:
+                            self.logger.info("Silence detected, stopping recording.")
+                            break  # Stop the recording
 
-                # silence after speech has started
-                if recording_started:
-                    if silence_duration > max_silence_duration:
-                        self.logger.info("Silence detected, stopping recording.")
-                        break  # Aufnahme beenden, wenn 1 Sekunde Stille erkannt wurde
+                        silence_duration += frame_duration_ms / 1000  # Increase silence duration
 
-                    # increase silence duration after speech was detected
-                    silence_duration += frame_duration_ms / 1000
+            finally:
+                self.logger.info("Audio stream stopped.")
 
-        finally:
-            stream.stop()
-            stream.close()
-            self.logger.info("Audio stream stopped.")
-
-        # somehting failed with the mic
+        # Handle the case where no audio was captured
         if not audio_frames:
+            self.logger.error("Recording started but no audio was captured.")
             raise AudioRecordingFailed("Recording started but no audio was captured.")
 
-        # recording was successful
+        # Recording was successful, concatenate the frames
         audio_array = np.concatenate(audio_frames, axis=0)
-        self.logger.info("Audio recording complete.")
+        self.logger.info(f"Audio recording complete with {len(audio_frames)} frames captured.")
 
         return AudioRecordResult(success=True, data=audio_array)
 
     def is_speech(self, frame: np.ndarray, sample_rate: int, vad_mode: int = 3) -> bool:
-        """Check if the audio frame contains speech using webrtcvad."""
+        """
+        Check if the audio frame contains speech using webrtcvad.
+
+        :param frame: The audio frame (NumPy array) to be checked for speech.
+        :param sample_rate: The sample rate of the audio in Hz (must be 8000, 16000, 32000, or 48000).
+        :param vad_mode: Sensitivity of the VAD (Voice Activity Detection).
+                         0 = most restrictive, 3 = most permissive. Default is 3.
+        :return: True if speech is detected, otherwise False.
+        :raises ValueError: If vad_mode is outside the range [0, 3].
+        """
+
+        # Validate vad_mode
+        if not 0 <= vad_mode <= 3:
+            self.logger.error(f"Invalid vad_mode: {vad_mode}. It must be between 0 and 3.")
+            raise ValueError(f"Invalid vad_mode: {vad_mode}. Must be between 0 and 3.")
+
         try:
             self.vad.set_mode(vad_mode)
-            return self.vad.is_speech(frame.tobytes(), sample_rate)
+            # Convert the frame to bytes because webrtcvad expects raw PCM bytes
+            is_speech_detected = self.vad.is_speech(frame.tobytes(), sample_rate)
+            return is_speech_detected
         except Exception as e:
             self.logger.error(f"Error in is_speech detection: {e}")
             return False
 
-    def simple_speak(self, text: str) -> None:
-        samplerate = 24000  # Set the sample rate to match the response
-        chunk_size = 1024  # Original chunk size
-        buffer_size = 100  # Collect chunks before playing
-        audio_buffer = []
+    def transcribe_audio(self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000) -> str:
+        """
+        Transcribes the recorded audio data using OpenAI's Whisper API.
 
-        # Open a sounddevice stream to continuously play audio
-        with sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16') as stream:
-
-            with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
-                    model="tts-1",
-                    voice="nova",
-                    input=text,
-                    response_format="pcm"
-            ) as response:
-                for chunk in response.iter_bytes(chunk_size):
-                    # Convert the chunk to a NumPy array
-                    audio_data = np.frombuffer(chunk, dtype=np.int16)
-
-                    # Buffer the audio chunks
-                    audio_buffer.append(audio_data)
-
-                    # if collected enough chunks, start playing
-                    if len(audio_buffer) >= buffer_size:
-                        complete_audio = np.concatenate(audio_buffer)
-
-                        # Write directly to the stream without waiting
-                        stream.write(complete_audio)
-
-                        # clear buffer for the next block
-                        audio_buffer = []
-
-                # Spiele verbleibende Audio-Chunks nach dem Empfang ab
-                if audio_buffer:
-                    complete_audio = np.concatenate(audio_buffer)
-                    stream.write(complete_audio)
-
-            sd.wait()
-
-    def transcribe_audio(self, record_result: AudioRecordResult, language: str) -> str:
-        """Transcribe the recorded audio data using OpenAI's Whisper API."""
+        :param record_result: An instance of AudioRecordResult containing the recorded audio data.
+        :param language: The language of the audio to be transcribed. Must be supported by the Whisper API.
+        :param sample_rate: The sample rate for the audio recording. Default is 16000 Hz.
+        :return: The transcribed text as a string.
+        :raises AudioTranscriptionFailed: If no valid audio data is available or if transcription fails.
+        """
 
         if not record_result.success or record_result.data is None:
             raise AudioTranscriptionFailed("No valid audio data to transcribe.")
@@ -198,13 +198,15 @@ class AudioService:
             with wave.open(audio_buffer, 'wb') as wav_file:
                 wav_file.setnchannels(1)  # Mono
                 wav_file.setsampwidth(2)  # 16-bit Audio (2 Bytes)
-                wav_file.setframerate(16000)  # Sample Rate 16000 Hz
+                wav_file.setframerate(sample_rate)  # Use the sample rate passed as a parameter
                 wav_file.writeframes(record_result.data.tobytes())
 
             # Reset the buffer position to the beginning
             audio_buffer.seek(0)
 
-            self.logger.info("Sending audio to OpenAI for transcription...")
+            # Log information about the transcription process
+            self.logger.info(
+                f"Sending audio to OpenAI for transcription (language: {language}, duration: {len(record_result.data)} samples)...")
 
             # Send the audio file as a tuple with a filename, file content, and MIME type to the API
             transcription = self.open_ai_connector.client.audio.transcriptions.create(
@@ -214,113 +216,188 @@ class AudioService:
                 language=language
             )
 
+            # Check if transcription contains text
+            if not transcription or not hasattr(transcription, 'text'):
+                self.logger.error(f"Transcription failed: No text in response from API.")
+                raise AudioTranscriptionFailed("Transcription failed: No text returned from API.")
+
             return transcription.text
 
         except Exception as e:
             self.logger.error(f"An error occurred during transcription: {e}")
-            raise
+            raise AudioTranscriptionFailed(f"Transcription failed due to: {e}")
 
     def process_speech(self, text: str) -> None:
-        """Converts the entire text into audio and stores it in the queue."""
-        logging.info("Sending sentence to OpenAI-API to convert to audio.")
+        """
+        Converts the given text into audio using OpenAI's text-to-speech (TTS) API
+        and stores the resulting audio data in the audio queue.
+
+        :param text: The text to be converted into speech.
+        :raises: Raises an exception if the TTS process fails.
+        """
+        self.logger.info(
+            f"Sending sentence to OpenAI API to convert to audio (text length: {len(text)} characters).")
 
         try:
             with self.transcription_lock:
+                # Request OpenAI TTS API to convert the text to audio
                 with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
                         model="tts-1",
                         voice="nova",
                         input=text,
                         response_format="pcm"
                 ) as response_audio:
-                    logging.info("Audio of sentence received from OpenAI-API.")
+                    self.logger.info("Audio of sentence received from OpenAI API.")
 
+                    # Convert the audio response to a NumPy array
                     audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
-                    self.audio_queue.put(audio_data)
+                    self.logger.info(f"Received audio data (size: {audio_data.size} samples).")
 
-                    logging.info("Audio processing completed and added to queue.")
+                    # Store the audio data in the queue
+                    self.audio_queue.put(audio_data)
+                    self.logger.info("Audio processing completed and added to queue.")
 
         except Exception as e:
-            logging.error(f"Error occurred during speech processing: {e}")
-            raise
+            # Log the error with more details
+            self.logger.error(f"Error occurred during speech processing: {e}")
+            # Add an empty numpy array as an end signal
+            self.audio_queue.put(np.array([], dtype=np.int16))
+            raise AudioTranscriptionFailed(f"Failed to process speech due to: {e}")
 
     def play_audio(self, samplerate: int = 24000, channels: int = 1) -> None:
-        """Continuously plays audio from the queue."""
-        stream_audio = None
+        """
+        Continuously plays audio data from the queue using the specified sample rate and channel count.
+        Playback ends when an empty audio signal (size 0) is received in the queue.
+
+        :param samplerate: The sample rate to use for audio playback (default: 24000 Hz).
+        :param channels: The number of audio channels (default: 1).
+        """
+        self.logger.info(
+            f"Starting audio playback with samplerate={samplerate}, channels={channels}.")
 
         try:
-            stream_audio = sd.OutputStream(
-                samplerate=samplerate, channels=channels, dtype='int16'
-            )
-            stream_audio.start()
+            with sd.OutputStream(samplerate=samplerate, channels=channels,
+                                 dtype='int16') as stream_audio:
+                self.logger.info("Audio stream started.")
 
-            while True:
-                audio_data = self.audio_queue.get()  # blocks until item is avialable
-                if audio_data is None:  # end signal
-                    break
+                while True:
+                    # Blocks until audio data is available in the queue
+                    audio_data = self.audio_queue.get()
 
-                stream_audio.write(audio_data)  # write audio data into stream
+                    # Check for the end signal (empty array)
+                    if audio_data.size == 0:
+                        self.logger.info("Received end signal, stopping audio playback.")
+                        break
+
+                    # Write audio data to the output stream
+                    stream_audio.write(audio_data)
+                    self.logger.debug(f"Played audio chunk of size {audio_data.size} samples.")
 
         except Exception as e:
-            logging.error(f"Error occurred during audio playback: {e}")
+            self.logger.error(f"Error occurred during audio playback: {e}")
 
         finally:
-            if stream_audio is not None:
-                try:
-                    stream_audio.stop()
-                    stream_audio.close()
-                    sd.wait()  # wait until all audio buffers are played
-                    logging.info("Audio playback finished and stream closed.")
-                except Exception as e:
-                    logging.error(f"Error while closing the audio stream: {e}")
+            self.logger.info("Audio playback finished and stream closed.")
+            sd.wait()  # Ensure all audio buffers are played
 
     def collect_until_sentence_end(self, text_buffer: str) -> Tuple[str, str]:
-        """Collect text until a sentence end is detected (., !, ?)."""
-        match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
+        """
+        Collects text from the buffer until a sentence-ending punctuation (., !, ?) is detected.
+
+        :param text_buffer: The input text buffer containing sentences.
+        :return: A tuple where the first element is the sentence up to the punctuation mark,
+                 and the second element is the remaining text after the punctuation mark.
+                 If no sentence-ending punctuation is found, returns an empty string as the first
+                 element and the entire buffer as the second element.
+        """
+        # Regex to detect sentence-ending punctuation followed by a space or end of text
+        match = re.search(r'[.!?](?=\s|$)', text_buffer)
+
         if match:
             # Return the sentence and the remaining text
-            return text_buffer[:match.end()], text_buffer[match.end():]
+            sentence = text_buffer[:match.end()]
+            remaining_text = text_buffer[match.end():]
+            self.logger.debug(
+                f"Detected sentence end. Sentence: '{sentence}', Remaining: '{remaining_text}'")
+            return sentence, remaining_text
+
+        # No sentence-ending punctuation found
+        self.logger.debug(f"No sentence end detected. Returning entire buffer: '{text_buffer}'")
         return "", text_buffer
 
     def play_stream_audio(self, stream: Any, samplerate: int = 24000, channels: int = 1) -> None:
-        """Stream GPT responses and handle function calls like executing system commands."""
+        """
+        Stream GPT responses, convert them into speech, and play the audio in a separate thread.
+        This method handles streaming text, detecting sentence boundaries, and converting
+        the text to audio using the process_speech method. It also manages the audio playback
+        by running an audio thread and sending stop signals when finished.
+
+        :param stream: The GPT response stream to be processed.
+        :param samplerate: The sample rate for the audio playback (default: 24000 Hz).
+        :param channels: The number of audio channels for playback (default: 1).
+        """
 
         # Start the audio thread (playing responses)
-        audio_thread: threading.Thread = threading.Thread(target=self.play_audio)
+        self.logger.info("Starting audio thread for playing GPT responses.")
+        audio_thread: threading.Thread = threading.Thread(
+            target=self.play_audio, args=(samplerate, channels))
         audio_thread.start()
 
-        # Process the stream
+        # Initialize buffers for processing the stream
         text_buffer: str = ""
         assistant_reply: str = ""
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future: concurrent.futures.Future = None
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None:
-                    content: str = chunk.choices[0].delta.content
+        try:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future: Optional[concurrent.futures.Future] = None
+                for chunk in stream:
+                    if chunk.choices[0].delta.content is not None:
+                        content: str = chunk.choices[0].delta.content
 
-                    assistant_reply += content
-                    text_buffer += content
+                        assistant_reply += content
+                        text_buffer += content
 
-                    # Satzende erkennen und Sprachverarbeitung starten
-                    sentence, remaining_text = self.collect_until_sentence_end(text_buffer)
-                    if sentence:
-                        future = executor.submit(self.process_speech, sentence)
-                        text_buffer = remaining_text
+                        # Sentence detection and start speech processing
+                        sentence, remaining_text = self.collect_until_sentence_end(text_buffer)
+                        if sentence:
+                            self.logger.debug(
+                                f"Detected sentence: '{sentence}'. Submitting for speech processing.")
+                            future = executor.submit(self.process_speech, sentence)
+                            text_buffer = remaining_text
 
-            # process remaining text (e.g. no complete sentence)
-            if text_buffer:
-                future = executor.submit(self.process_speech, text_buffer)
+                # Process remaining text (if no complete sentence)
+                if text_buffer:
+                    self.logger.debug(f"Processing remaining text: '{text_buffer}'")
+                    future = executor.submit(self.process_speech, text_buffer)
 
-            if future:
-                future.result()
+                # Ensure that the last submitted future is completed
+                if future:
+                    self.logger.debug("Waiting for the last speech processing task to finish.")
+                    future.result()
 
-        # Signal the end of the audio stream by sending a 'None' signal to stop the audio thread
-        self.stop_audio()
+        except Exception as e:
+            self.logger.error(f"Error occurred while processing stream: {e}")
 
-        # Wait until the audio thread finishes
-        audio_thread.join()
+        finally:
+            # Signal the end of the audio stream and stop the audio thread
+            self.logger.info("Sending stop signal to audio thread.")
+            self.stop_audio()
+
+            # Wait until the audio thread finishes
+            audio_thread.join()
+            self.logger.info("Audio thread finished.")
 
     def stop_audio(self) -> None:
-        """Sends an end signal to the queue to stop the playback."""
-        self.audio_queue.put(None)  # Sends the stop signal
-        self.logger.info("Stop signal sent to audio queue.")
+        """
+        Sends an end signal (empty np.ndarray) to the audio queue to stop the playback.
+        This signal is recognized by the play_audio method, which will stop the audio stream
+        once the empty array is received.
+        """
+        try:
+            # Send an empty np.ndarray as a stop signal to the audio queue
+            self.audio_queue.put(np.array([], dtype=np.int16))
+            self.logger.info("Stop signal sent to audio queue.")
+        except Exception as e:
+            self.logger.error(f"Error occurred while sending stop signal to audio queue: {e}")
+            raise
+
