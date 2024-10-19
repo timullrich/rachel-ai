@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.entities import AudioRecordResult
 from src.services import AudioService, ChatService
+from src.executors import CommandExecutor
 
 
 def setup_logging() -> logging.Logger:
@@ -55,8 +56,18 @@ if __name__ == "__main__":
     conversation_history: List[Dict[str, str]] = [
         {"role": "system", "content": "You are a helpful assistant."}]
 
+    # Register available task executors
+    executors = [
+        CommandExecutor(),
+        # Other executors like EmailExecuter(), ReminderExecuter(), etc.
+    ]
+
     # Init services
-    chat_service = ChatService(open_ai_connector)
+    chat_service = ChatService(
+        open_ai_connector,
+        user_language=user_language,
+        executors=executors
+    )
     audio_service = AudioService(
         open_ai_connector,
         user_language=user_language,
@@ -70,6 +81,8 @@ if __name__ == "__main__":
             # Start user input recording and saves the input into user_input_audio
             user_input_audio: AudioRecordResult = audio_service.record()
 
+            audio_service.play_sound("sent")
+
             # Handle silence timeout (3 seconds with no speech)
             if user_input_audio.silence_timeout:
                 logger.info("No speech detected for 3 seconds. Exiting...")
@@ -78,7 +91,8 @@ if __name__ == "__main__":
 
             # Transcribe the AudioRecordResult using OpenAI's Whisper API
             user_input_text: str = audio_service.transcribe_audio(user_input_audio, user_language)
-            print(f"You: {user_input_text}")
+            formatted_user_input_text: str = Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
+            print(formatted_user_input_text)
 
             # Stream the transcribed input to GPT and handle the response
             stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
