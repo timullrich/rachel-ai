@@ -10,7 +10,7 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": f"Performs various email operations like sending, listing emails, or fetching specific emails. When sending an email, it must include the signature some nice grettings and my name '{self.username}' at the end of the email body.",
+            "description": f"Performs various email operations like sending, listing emails, or fetching specific emails. When sending an email, it must include the signature some nice grettings and my name '{self.username}' at the end of the email body. Always aks before you really send the Email!",
             "parameters": {
                 "type": "object",
                 "properties": {
