@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 # local modules
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService
-from src.executors import CommandExecutor
+from src.services import AudioService, ChatService, EmailService
+from src.executors import CommandExecutor, EmailExecutor
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -66,6 +66,16 @@ if __name__ == "__main__":
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     open_ai_connector: OpenAiConnector = OpenAiConnector(openai_api_key)
 
+    # Init EmailService with credentials from .env or similar
+    email_service = EmailService(
+        smtp_server=os.getenv("SMTP_SERVER", "smtp.example.com"),
+        smtp_user=os.getenv("SMTP_USER", "your-email@example.com"),
+        smtp_password=os.getenv("SMTP_PASSWORD", "your-password"),
+        imap_server=os.getenv("IMAP_SERVER", "imap.example.com"),
+        imap_user=os.getenv("IMAP_USER", "your-email@example.com"),
+        imap_password=os.getenv("IMAP_PASSWORD", "your-password")
+    )
+
     # application variables
     conversation_history: List[Dict[str, str]] = [
         {"role": "system", "content": "You are a helpful assistant."}
@@ -74,6 +84,7 @@ if __name__ == "__main__":
     # Register available task executors
     executors = [
         CommandExecutor(),
+        EmailExecutor(email_service),
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
