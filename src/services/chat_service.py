@@ -134,19 +134,20 @@ class ChatService:
                     raise Exception(f"No Executor found for function: {function_call_name}")
 
                 # Create the interpretation request for GPT
+                conversation_history.append({
+                    "role": "user",
+                    "content": result
+                })
+
+                conversation_history.append({
+                    "role": "system",
+                    "content": executor.get_result_interpreter_instructions(
+                        user_language=self.user_language)
+                })
+
                 interpretation_request = {
                     "model": "gpt-4o-mini",
-                    "messages": conversation_history + [
-                        {
-                            "role": "system",
-                            "content": executor.get_result_interpreter_instructions(
-                            user_language=self.user_language)
-                        },
-                        {
-                            "role": "user",
-                            "content": result
-                        }
-                    ]
+                    "messages": conversation_history
                 }
 
                 # Return the interpreted executor result stream
