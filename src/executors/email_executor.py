@@ -3,13 +3,14 @@ from ._executor_interface import ExecutorInterface
 
 
 class EmailExecutor(ExecutorInterface):
-    def __init__(self, email_service):
+    def __init__(self, email_service, username: str):
         self.email_service = email_service
+        self.username: str = username
 
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": "Performs various email operations like sending, listing emails, or fetching specific emails.",
+            "description": f"Performs various email operations like sending, listing emails, or fetching specific emails. When sending an email, it must include the signature some nice grettings and my name '{self.username}' at the end of the email body.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -26,8 +27,8 @@ class EmailExecutor(ExecutorInterface):
                         "description": "Email subject (only required for 'send' operation)"
                     },
                     "body": {
-                        "type": "string",
-                        "description": "Email body text (only required for 'send' operation)"
+                      "type": "string",
+                        "description": f"Email body text (only required for 'send' operation). Ensure to include the message body followed  with some nice greetings and my name '{self.username}' as the signature."
                     },
                     "email_id": {
                         "type": "string",

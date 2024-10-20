@@ -59,6 +59,8 @@ if __name__ == "__main__":
     user_language: str = os.getenv("USER_LANGUAGE", "en")
     sound_theme: str = os.getenv("SOUND_THEME", "default")
 
+    username: str = os.getenv("USERNAME")
+
     # Configure logging
     logger: logging.Logger = setup_logging(log_level)
 
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     # Register available task executors
     executors = [
         CommandExecutor(),
-        EmailExecutor(email_service),
+        EmailExecutor(email_service, username),
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
