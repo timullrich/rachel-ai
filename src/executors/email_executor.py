@@ -9,13 +9,13 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": "Performs various email operations like sending, listing unread emails, or fetching specific emails.",
+            "description": "Performs various email operations like sending, listing unread emails, fetching specific emails, or listing the last N emails.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The email operation to perform: 'send', 'list_unread', 'get_email'"
+                        "description": "The email operation to perform: 'send', 'list_unread', 'get_email', 'list_last'"
                     },
                     "to": {
                         "type": "string",
@@ -32,6 +32,10 @@ class EmailExecutor(ExecutorInterface):
                     "email_id": {
                         "type": "string",
                         "description": "The ID of the email to retrieve (only required for 'get_email' operation)"
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Number of emails to list (only required for 'list_last' operation)"
                     }
                 },
                 "required": ["operation"]
@@ -53,6 +57,12 @@ class EmailExecutor(ExecutorInterface):
             email_id = arguments.get("email_id")
             email_content = self.email_service.get_email(email_id)
             return email_content or f"No email found with ID {email_id}."
+        elif operation == "list_last":
+            count = arguments.get("count", 5)  # Default to 5 emails if no count provided
+            emails = self.email_service.list(count)
+            if not emails:
+                return "No emails found."
+            return "\n".join([f"From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
         else:
             return f"Invalid operation: {operation}"
 
