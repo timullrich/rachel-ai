@@ -36,26 +36,6 @@ class EmailService:
             self.logger.error(f"Failed to send email to {to}: {e}", exc_info=True)
             raise
 
-    def list_unread_emails(self) -> List[str]:
-        """Lists unread emails from the inbox with error handling and logging."""
-        self.logger.info("Attempting to list unread emails.")
-        try:
-            with imaplib.IMAP4_SSL(self.imap_server) as mail:
-                mail.login(self.imap_user, self.imap_password)
-                mail.select("inbox")
-                status, messages = mail.search(None, "UNSEEN")
-
-                if status == "OK":
-                    unread_emails = messages[0].split()
-                    self.logger.info(f"Found {len(unread_emails)} unread emails.")
-                    return unread_emails
-                else:
-                    self.logger.warning("No unread emails found.")
-                    return []
-        except Exception as e:
-            self.logger.error(f"Error listing unread emails: {e}", exc_info=True)
-            raise
-
     def get_email(self, email_id: str) -> Optional[str]:
         """Fetches the content of a specific email with error handling and logging."""
         self.logger.info(f"Attempting to fetch email with ID {email_id}")
