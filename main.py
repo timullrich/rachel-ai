@@ -33,7 +33,6 @@ def setup_logging(log_level: str = "info") -> logging.Logger:
     return logger
 
 
-
 def format_and_print_content(self, content: str) -> None:
     """Formats content for console output."""
     formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
@@ -42,18 +41,17 @@ def format_and_print_content(self, content: str) -> None:
 
 
 if __name__ == "__main__":
+    script_dir: str = os.path.dirname(os.path.realpath(__file__))
+
     # Load environment variables from .env file
     load_dotenv()
     platform: str = os.getenv("PLATFORM", "raspberry-pi")
-
-    # Configure logging
     log_level: str = os.getenv("LOG_LEVEL", "info")
-    logger: logging.Logger = setup_logging(log_level)
-
     user_language: str = os.getenv("USER_LANGUAGE", "en")
     sound_theme: str = os.getenv("SOUND_THEME", "default")
 
-    script_dir: str = os.path.dirname(os.path.realpath(__file__))
+    # Configure logging
+    logger: logging.Logger = setup_logging(log_level)
 
     # Init OpenAiConnector
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
@@ -61,7 +59,8 @@ if __name__ == "__main__":
 
     # application variables
     conversation_history: List[Dict[str, str]] = [
-        {"role": "system", "content": "You are a helpful assistant."}]
+        {"role": "system", "content": "You are a helpful assistant."}
+    ]
 
     # Register available task executors
     executors = [
@@ -83,11 +82,9 @@ if __name__ == "__main__":
 
     try:
         while True:
-            audio_service.play_sound("sent")
-
             # Start user input recording and saves the input into user_input_audio
+            audio_service.play_sound("sent")
             user_input_audio: AudioRecordResult = audio_service.record()
-
             audio_service.play_sound("sent")
 
             # Handle silence timeout (3 seconds with no speech)
@@ -96,9 +93,10 @@ if __name__ == "__main__":
                 audio_service.play_sound("standby")
                 sys.exit()  # Exit the entire script
 
-            # Transcribe the AudioRecordResult using OpenAI's Whisper API
+            # Transcribe and print the AudioRecordResult using OpenAI's Whisper API
             user_input_text: str = audio_service.transcribe_audio(user_input_audio, user_language)
-            formatted_user_input_text: str = Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
+            formatted_user_input_text: str = \
+                Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
             print(formatted_user_input_text)
 
             # Stream the transcribed input to GPT and handle the response
