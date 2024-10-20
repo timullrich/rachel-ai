@@ -17,7 +17,7 @@ class EmailService:
         self.imap_password = imap_password
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def send_email(self, to: str, subject: str, body: str) -> None:
+    def send_email(self, to: str, subject: str, body: str) -> str:
         """Sends an email via SMTP with error handling and logging."""
         self.logger.info(f"Attempting to send email to {to}")
         try:
@@ -31,6 +31,7 @@ class EmailService:
                 server.send_message(msg)
 
             self.logger.info(f"Email successfully sent to {to}")
+            return f"Email successfully sent to {to} with subject '{subject}'."
         except Exception as e:
             self.logger.error(f"Failed to send email to {to}: {e}", exc_info=True)
             raise
@@ -75,26 +76,37 @@ class EmailService:
             self.logger.error(f"Error fetching email with ID {email_id}: {e}", exc_info=True)
             raise
 
-    def list(self, count: int = 5) -> List[dict]:
-        """Lists the last `count` emails from the inbox efficiently."""
-        self.logger.info(f"Attempting to list the last {count} emails.")
+    def list(self, count: int = 5, unread_only: bool = False) -> List[dict]:
+        """
+        Lists emails from the inbox.
+
+        If unread_only is True, it lists only unread emails without marking them as read.
+        Otherwise, it lists the last `count` emails.
+        """
+        operation_type = "unread" if unread_only else f"last {count}"
+        self.logger.info(f"Attempting to list {operation_type} emails.")
         try:
             with imaplib.IMAP4_SSL(self.imap_server) as mail:
                 mail.login(self.imap_user, self.imap_password)
                 mail.select("inbox")
 
-                # Search for the last `count` emails only
-                status, messages = mail.search(None, "ALL")
+                # Search for unread or all emails
+                if unread_only:
+                    status, messages = mail.search(None, "UNSEEN")
+                else:
+                    status, messages = mail.search(None, "ALL")
 
                 if status == "OK":
                     email_ids = messages[0].split()
 
-                    # Only fetch the last `count` email IDs (avoid fetching all emails)
-                    latest_email_ids = email_ids[-count:]
-                    emails = []
+                    # Only fetch the last `count` emails if not listing unread emails
+                    if not unread_only:
+                        email_ids = email_ids[-count:]
 
-                    for email_id in reversed(latest_email_ids):  # Reverse to get newest first
-                        status, message_data = mail.fetch(email_id, "(RFC822)")
+                    emails = []
+                    for email_id in reversed(email_ids):  # Reverse to get newest first
+                        # Use BODY.PEEK to avoid marking the email as read
+                        status, message_data = mail.fetch(email_id, "(BODY.PEEK[HEADER])")
                         if status == "OK":
                             # Parse the email content
                             email_message = BytesParser().parsebytes(message_data[0][1])
@@ -104,7 +116,7 @@ class EmailService:
                                 "date": email_message.get("date")
                             })
 
-                    self.logger.info(f"Successfully retrieved the last {count} emails.")
+                    self.logger.info(f"Successfully retrieved {operation_type} emails.")
                     return emails
                 else:
                     self.logger.warning(f"Failed to retrieve emails.")

@@ -137,9 +137,15 @@ class ChatService:
                 interpretation_request = {
                     "model": "gpt-4o-mini",
                     "messages": conversation_history + [
-                        {"role": "system", "content": executor.get_result_interpreter_instructions(
-                            user_language=self.user_language)},
-                        {"role": "user", "content": result}
+                        {
+                            "role": "system",
+                            "content": executor.get_result_interpreter_instructions(
+                            user_language=self.user_language)
+                        },
+                        {
+                            "role": "user",
+                            "content": result
+                        }
                     ]
                 }
 

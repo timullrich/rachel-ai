@@ -9,13 +9,13 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": "Performs various email operations like sending, listing unread emails, fetching specific emails, or listing the last N emails.",
+            "description": "Performs various email operations like sending, listing emails, or fetching specific emails.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The email operation to perform: 'send', 'list_unread', 'get_email', 'list_last'"
+                        "description": "The email operation to perform: 'send', 'list', 'get_email'"
                     },
                     "to": {
                         "type": "string",
@@ -33,9 +33,13 @@ class EmailExecutor(ExecutorInterface):
                         "type": "string",
                         "description": "The ID of the email to retrieve (only required for 'get_email' operation)"
                     },
+                    "unread_only": {
+                        "type": "boolean",
+                        "description": "Whether to list only unread emails (only used for 'list' operation)"
+                    },
                     "count": {
                         "type": "integer",
-                        "description": "Number of emails to list (only required for 'list_last' operation)"
+                        "description": "Number of emails to list (only used for 'list' operation)"
                     }
                 },
                 "required": ["operation"]
@@ -50,19 +54,17 @@ class EmailExecutor(ExecutorInterface):
             subject = arguments.get("subject")
             body = arguments.get("body")
             return self.email_service.send_email(to, subject, body)
-        elif operation == "list_unread":
-            unread_emails = self.email_service.list_unread_emails()
-            return f"Unread emails: {len(unread_emails)}"
+        elif operation == "list":
+            unread_only = arguments.get("unread_only", False)
+            count = arguments.get("count", 5)
+            emails = self.email_service.list(count=count, unread_only=unread_only)
+            if not emails:
+                return "No emails found."
+            return "\n".join([f"From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
         elif operation == "get_email":
             email_id = arguments.get("email_id")
             email_content = self.email_service.get_email(email_id)
             return email_content or f"No email found with ID {email_id}."
-        elif operation == "list_last":
-            count = arguments.get("count", 5)  # Default to 5 emails if no count provided
-            emails = self.email_service.list(count)
-            if not emails:
-                return "No emails found."
-            return "\n".join([f"From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
         else:
             return f"Invalid operation: {operation}"
 
