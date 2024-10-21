@@ -10,7 +10,7 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": f"Performs various email operations like sending, listing emails, fetching, or deleting specific emails. When sending an email, it must include the signature some nice greetings and my name '{self.username}' at the end of the email body.",
+            "description": f"Performs various email operations like sending, listing emails, fetching, or deleting specific emails. When sending an email, it must include the signature 'some nice greetings' and my name '{self.username}' at the end of the email body.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -41,6 +41,40 @@ class EmailExecutor(ExecutorInterface):
                     "count": {
                         "type": "integer",
                         "description": "Number of emails to list (only used for 'list' operation)"
+                    },
+                    "filters": {
+                        "type": "object",
+                        "description": "Optional filters for listing emails, such as 'from', 'subject', 'before', 'after', 'body', and more.",
+                        "properties": {
+                            "from": {
+                                "type": "string",
+                                "description": "Filter emails by the sender's email address (contains match)"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Filter emails by the sender's name (contains match)"
+                            },
+                            "subject": {
+                                "type": "string",
+                                "description": "Filter emails by the subject (contains match)"
+                            },
+                            "before": {
+                                "type": "string",
+                                "description": "Filter emails sent before a specific date (YYYY-MM-DD)"
+                            },
+                            "after": {
+                                "type": "string",
+                                "description": "Filter emails sent after a specific date (YYYY-MM-DD)"
+                            },
+                            "date": {
+                                "type": "string",
+                                "description": "Filter emails sent on a specific date (YYYY-MM-DD)"
+                            },
+                            "body": {
+                                "type": "string",
+                                "description": "Filter emails whose body contains a specific string"
+                            }
+                        }
                     }
                 },
                 "required": ["operation"]
@@ -58,7 +92,8 @@ class EmailExecutor(ExecutorInterface):
         elif operation == "list":
             unread_only = arguments.get("unread_only", False)
             count = arguments.get("count", 5)
-            emails = self.email_service.list(count=count, unread_only=unread_only)
+            filters = arguments.get("filters", {})
+            emails = self.email_service.list(count=count, unread_only=unread_only, filters=filters)
             if not emails:
                 return "No emails found."
             return "\n".join([f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])

@@ -8,7 +8,8 @@ from email.mime.text import MIMEText
 from email.parser import BytesParser
 
 # Typing imports
-from typing import List, Optional
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
 
 class EmailService:
@@ -61,15 +62,37 @@ class EmailService:
             self.logger.error(f"Error fetching email with ID {id}: {e}", exc_info=True)
             raise
 
-    def list(self, count: int = 5, unread_only: bool = False) -> List[dict]:
+    from datetime import datetime, timedelta
+
+    def list(self, count: int = 5, unread_only: bool = False,
+             filters: Optional[Dict[str, str]] = None) -> List[dict]:
         """
         Lists emails from the inbox.
 
         If unread_only is True, it lists only unread emails without marking them as read.
         Otherwise, it lists the last `count` emails.
+
+        Filters can be passed as a dictionary to filter emails by different fields, e.g.:
+            - "from": Filters by the sender's email address (contains match).
+            - "name": Filters by the sender's name (contains match).
+            - "subject": Filters by the subject of the email (contains match).
+            - "before": Filters emails sent before a specific date (format: YYYY-MM-DD).
+            - "after": Filters emails sent after a specific date (format: YYYY-MM-DD).
+            - "date": Filters emails sent on a specific date (format: YYYY-MM-DD).
+            - "body": Filters emails whose body contains a specific string (requires fetching full email content).
+
+        Default behavior will fetch emails from the last 4 weeks if no time range filter is provided.
         """
-        operation_type = "unread" if unread_only else f"last {count}"
-        self.logger.info(f"Attempting to list {operation_type} emails.")
+        filters = filters or {}
+
+        # Set default "after" filter to 4 weeks ago if no "before" or "after" filter is provided
+        if "after" not in filters and "before" not in filters:
+            four_weeks_ago = (datetime.now() - timedelta(weeks=4)).strftime("%Y-%m-%d")
+            filters["after"] = four_weeks_ago
+
+        operation_type = "unread" if unread_only else "filtered"
+        self.logger.info(f"Attempting to list {operation_type} emails with filters: {filters}")
+
         try:
             with imaplib.IMAP4_SSL(self.imap_server) as mail:
                 mail.login(self.imap_user, self.imap_password)
@@ -79,28 +102,82 @@ class EmailService:
                 if unread_only:
                     status, messages = mail.search(None, "UNSEEN")
                 else:
-                    status, messages = mail.search(None, "ALL")
+                    search_criteria = ["ALL"]
+
+                    # Apply time-based filters (before and after)
+                    if "after" in filters:
+                        search_criteria.append(
+                            f'SINCE {datetime.strptime(filters["after"], "%Y-%m-%d").strftime("%d-%b-%Y")}')
+                    if "before" in filters:
+                        search_criteria.append(
+                            f'BEFORE {datetime.strptime(filters["before"], "%Y-%m-%d").strftime("%d-%b-%Y")}')
+
+                    status, messages = mail.search(None, *search_criteria)
 
                 if status == "OK":
                     email_ids = messages[0].split()
 
-                    # Only fetch the last `count` emails if not listing unread emails
-                    if not unread_only:
-                        email_ids = email_ids[-count:]
-
                     emails = []
                     for email_id in reversed(email_ids):  # Reverse to get newest first
                         # Use BODY.PEEK to avoid marking the email as read
-                        status, message_data = mail.fetch(email_id, "(BODY.PEEK[HEADER])")
+                        status, message_data = mail.fetch(email_id,
+                                                          "(BODY.PEEK[HEADER] BODY.PEEK[TEXT])")
                         if status == "OK":
                             # Parse the email content
                             email_message = BytesParser().parsebytes(message_data[0][1])
+                            email_from = email_message.get("from")
+                            email_subject = email_message.get("subject")
+                            email_date = email_message.get("date")
+                            email_body = message_data[1][1].decode('utf-8',
+                                                                   errors='ignore')  # Fetch body text
+
+                            # Apply dynamic filters
+
+                            # Filter by sender email (contains match)
+                            if "from" in filters and filters[
+                                "from"].lower() not in email_from.lower():
+                                continue
+
+                            # Filter by sender name (contains match in the "from" field)
+                            if "name" in filters and filters[
+                                "name"].lower() not in email_from.lower():
+                                continue
+
+                            # Filter by subject (contains match)
+                            if "subject" in filters and filters[
+                                "subject"].lower() not in email_subject.lower():
+                                continue
+
+                            # Filter by body content (contains match)
+                            if "body" in filters and filters[
+                                "body"].lower() not in email_body.lower():
+                                continue
+
+                            # Parse the email date and convert to a standard format for comparison
+                            try:
+                                parsed_date = datetime.strptime(email_date,
+                                                                "%a, %d %b %Y %H:%M:%S %z")
+                            except ValueError:
+                                self.logger.warning(f"Failed to parse date: {email_date}")
+                                continue
+
+                            # Filter by specific date (YYYY-MM-DD)
+                            if "date" in filters:
+                                filter_date = datetime.strptime(filters["date"], "%Y-%m-%d")
+                                if parsed_date.date() != filter_date.date():
+                                    continue
+
+                            # Add the email to the result list if all filters pass
                             emails.append({
                                 "email_id": email_id.decode(),  # Add email_id here
-                                "subject": email_message.get("subject"),
-                                "from": email_message.get("from"),
-                                "date": email_message.get("date")
+                                "subject": email_subject,
+                                "from": email_from,
+                                "date": email_date
                             })
+
+                            # Stop collecting emails once the desired count is reached
+                            if len(emails) >= count:
+                                break
 
                     self.logger.info(f"Successfully retrieved {operation_type} emails.")
                     return emails
