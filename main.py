@@ -106,7 +106,7 @@ if __name__ == "__main__":
         while True:
             if args.silent:
                 # Silent mode: Use text input/output
-                user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL).encode('utf-8', 'replace').decode('utf-8')
+                user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL)
 
                 # Send user input to GPT and get response stream
                 stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
