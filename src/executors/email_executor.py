@@ -10,7 +10,13 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": f"Performs various email operations like sending, listing emails, fetching, or deleting specific emails. When sending an email, it must include the signature 'some nice greetings' and my name '{self.username}' at the end of the email body.",
+            "description": (
+                "Performs various email operations like sending, listing emails, fetching, or deleting specific emails. "
+                f"When sending an email, it must include the signature with some nice greetings and my name '{self.username}' at the end of the email body. "
+                "Before sending the email, always ask the user for confirmation explicitly and ensure they respond with 'yes', 'confirm', or a similar affirmative reply. "
+                "If the user does not explicitly confirm, do not send the email. Always clarify the intent to send and wait for explicit confirmation. "
+                "Never assume confirmation unless the user clearly responds affirmatively."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -28,7 +34,11 @@ class EmailExecutor(ExecutorInterface):
                     },
                     "body": {
                         "type": "string",
-                        "description": f"Email body text (only required for 'send' operation). Ensure to include the message body followed with some nice greetings and my name '{self.username}' as the signature."
+                        "description": (
+                            "Email body text (only required for 'send' operation). Ensure to include the message body followed "
+                            "with some nice greetings and my name '{self.username}' as the signature. "
+                            "Before sending, always ask for confirmation, and only send if the user responds affirmatively."
+                        )
                     },
                     "email_id": {
                         "type": "string",
@@ -44,7 +54,10 @@ class EmailExecutor(ExecutorInterface):
                     },
                     "filters": {
                         "type": "object",
-                        "description": "Optional filters for listing emails, such as 'from', 'subject', 'before', 'after', 'body', and more.",
+                        "description": (
+                            "Optional filters for listing emails, such as 'from', 'subject', 'before', 'after', 'body', and more. "
+                            "Used only for listing emails."
+                        ),
                         "properties": {
                             "from": {
                                 "type": "string",
@@ -96,7 +109,9 @@ class EmailExecutor(ExecutorInterface):
             emails = self.email_service.list(count=count, unread_only=unread_only, filters=filters)
             if not emails:
                 return "No emails found."
-            return "\n".join([f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
+            return "\n".join([
+                                 f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
+                                 for email in emails])
         elif operation == "get":
             email_id = arguments.get("email_id")
             email_content = self.email_service.get(email_id)
