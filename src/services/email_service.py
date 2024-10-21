@@ -1,7 +1,5 @@
 # Standard library imports
 import logging
-import smtplib
-import imaplib
 
 # Email handling imports
 from email.mime.text import MIMEText
@@ -11,29 +9,51 @@ from email.parser import BytesParser
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+# Local application imports
+from src.connectors import SmtpConnector, ImapConnector
+from src.exceptions import EmailNotFound, EmailDeletionError, EmailListingError
+
 
 class EmailService:
-    def __init__(self, smtp_server: str, smtp_user: str, smtp_password: str,
-                 imap_server: str, imap_user: str, imap_password: str):
-        self.smtp_server = smtp_server
-        self.smtp_user = smtp_user
-        self.smtp_password = smtp_password
-        self.imap_server = imap_server
-        self.imap_user = imap_user
-        self.imap_password = imap_password
+    def __init__(
+            self, smtp_connector: SmtpConnector,
+            imap_connector: ImapConnector,
+            user_language: str = "en"
+    ):
+        self.smtp_connector = smtp_connector
+        self.imap_connector = imap_connector
+        self.user_language = user_language
+
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def send(self, to: str, subject: str, body: str) -> str:
-        """Sends an email via SMTP with error handling and logging."""
+        """
+        Sends an email to the specified recipient via SMTP.
+
+        This method creates an email message with the given subject and body,
+        and uses the SMTP connection provided by the SmtpConnector to send the email.
+        It handles errors during the process and logs all significant steps.
+
+        Args:
+            to (str): The recipient's email address.
+            subject (str): The subject of the email.
+            body (str): The body content of the email.
+
+        Returns:
+            str: A success message confirming that the email was sent.
+
+        Raises:
+            ConnectionError: If the connection or authentication to the SMTP server fails.
+            Exception: If any other error occurs during the email sending process.
+        """
         self.logger.info(f"Attempting to send email to {to}")
         try:
             msg = MIMEText(body)
             msg["Subject"] = subject
-            msg["From"] = self.smtp_user
+            msg["From"] = self.smtp_connector.smtp_user
             msg["To"] = to
 
-            with smtplib.SMTP(self.smtp_server) as server:
-                server.login(self.smtp_user, self.smtp_password)
+            with self.smtp_connector.connect_and_login() as server:
                 server.send_message(msg)
 
             self.logger.info(f"Email successfully sent to {to}")
@@ -42,32 +62,59 @@ class EmailService:
             self.logger.error(f"Failed to send email to {to}: {e}", exc_info=True)
             raise
 
-    def get(self, id: str) -> Optional[str]:
-        """Fetches the content of a specific email with error handling and logging."""
+    def get(self, id: str) -> Dict[str, str]:
+        """
+        Fetches the content of a specific email using its ID.
+
+        This method uses the ImapConnector to connect to the IMAP server, fetches the email with the
+        given ID, and logs all significant steps.
+
+        Args:
+            id (str): The ID of the email to fetch.
+
+        Returns:
+            Dict[str, str]: A dictionary with email details including 'subject', 'from', 'to',
+                            'date', and 'body'.
+
+        Raises:
+            ConnectionError: If there is a problem connecting or authenticating with the IMAP server.
+            EmailNotFoundError: If the email with the given ID is not found or cannot be fetched.
+            Exception: For other general errors during the fetching process.
+        """
         self.logger.info(f"Attempting to fetch email with ID {id}")
         try:
-            with imaplib.IMAP4_SSL(self.imap_server) as mail:
-                mail.login(self.imap_user, self.imap_password)
+            # Connection and login via ImapConnector
+            with self.imap_connector.connect_and_login() as mail:
                 mail.select("inbox")
                 status, message_data = mail.fetch(id, "(RFC822)")
 
                 if status == "OK":
-                    email_message = message_data[0][1].decode("utf-8")
+                    # Parse the email content
+                    email_message = BytesParser().parsebytes(message_data[0][1])
+
+                    # Create structured response
+                    email_details = {
+                        "subject": email_message.get("subject"),
+                        "from": email_message.get("from"),
+                        "to": email_message.get("to"),
+                        "date": email_message.get("date"),
+                        "body": email_message.get_payload(decode=True).decode('utf-8',
+                                                                              errors='ignore')
+                    }
+
                     self.logger.info(f"Successfully fetched email with ID {id}")
-                    return email_message
+                    return email_details
                 else:
-                    self.logger.warning(f"Failed to fetch email with ID {id}")
-                    return None
+                    self.logger.warning(f"Email with ID {id} not found.")
+                    raise EmailNotFound(f"Email with ID {id} not found.")
         except Exception as e:
             self.logger.error(f"Error fetching email with ID {id}: {e}", exc_info=True)
             raise
 
-    from datetime import datetime, timedelta
-
     def list(self, count: int = 5, unread_only: bool = False,
-             filters: Optional[Dict[str, str]] = None) -> List[dict]:
+             filters: Optional[Dict[str, str]] = None) -> List[Dict[str, str]]:
         """
-        Lists emails from the inbox.
+        Lists emails from the inbox with optional filtering.
 
         If unread_only is True, it lists only unread emails without marking them as read.
         Otherwise, it lists the last `count` emails.
@@ -81,7 +128,18 @@ class EmailService:
             - "date": Filters emails sent on a specific date (format: YYYY-MM-DD).
             - "body": Filters emails whose body contains a specific string (requires fetching full email content).
 
-        Default behavior will fetch emails from the last 4 weeks if no time range filter is provided.
+        By default, the method fetches emails from the last 4 weeks if no time range is provided.
+
+        Args:
+            count (int): The maximum number of emails to return.
+            unread_only (bool): Whether to list only unread emails.
+            filters (Optional[Dict[str, str]]): A dictionary of filters to apply.
+
+        Returns:
+            List[Dict[str, str]]: A list of dictionaries containing email details.
+
+        Raises:
+            EmailListingError: If there is an issue retrieving emails.
         """
         filters = filters or {}
 
@@ -94,8 +152,7 @@ class EmailService:
         self.logger.info(f"Attempting to list {operation_type} emails with filters: {filters}")
 
         try:
-            with imaplib.IMAP4_SSL(self.imap_server) as mail:
-                mail.login(self.imap_user, self.imap_password)
+            with self.imap_connector.connect_and_login() as mail:
                 mail.select("inbox")
 
                 # Search for unread or all emails
@@ -114,101 +171,125 @@ class EmailService:
 
                     status, messages = mail.search(None, *search_criteria)
 
-                if status == "OK":
-                    email_ids = messages[0].split()
+                if status != "OK":
+                    raise EmailListingError("Failed to retrieve emails.")
 
-                    emails = []
-                    for email_id in reversed(email_ids):  # Reverse to get newest first
-                        # Use BODY.PEEK to avoid marking the email as read
-                        status, message_data = mail.fetch(email_id,
-                                                          "(BODY.PEEK[HEADER] BODY.PEEK[TEXT])")
-                        if status == "OK":
-                            # Parse the email content
-                            email_message = BytesParser().parsebytes(message_data[0][1])
-                            email_from = email_message.get("from")
-                            email_subject = email_message.get("subject")
-                            email_date = email_message.get("date")
-                            email_body = message_data[1][1].decode('utf-8',
-                                                                   errors='ignore')  # Fetch body text
+                email_ids = messages[0].split()
 
-                            # Apply dynamic filters
+                emails = []
+                for email_id in reversed(email_ids):  # Reverse to get newest first
+                    # Use BODY.PEEK to avoid marking the email as read
+                    status, message_data = mail.fetch(email_id,
+                                                      "(BODY.PEEK[HEADER] BODY.PEEK[TEXT])")
+                    if status == "OK":
+                        # Parse the email content
+                        email_message = BytesParser().parsebytes(message_data[0][1])
+                        email_from = email_message.get("from")
+                        email_subject = email_message.get("subject")
+                        email_date = email_message.get("date")
+                        email_body = message_data[1][1].decode('utf-8',
+                                                               errors='ignore')  # Fetch body text
 
-                            # Filter by sender email (contains match)
-                            if "from" in filters and filters[
-                                "from"].lower() not in email_from.lower():
-                                continue
-
-                            # Filter by sender name (contains match in the "from" field)
-                            if "name" in filters and filters[
-                                "name"].lower() not in email_from.lower():
-                                continue
-
-                            # Filter by subject (contains match)
-                            if "subject" in filters and filters[
-                                "subject"].lower() not in email_subject.lower():
-                                continue
-
-                            # Filter by body content (contains match)
-                            if "body" in filters and filters[
-                                "body"].lower() not in email_body.lower():
-                                continue
-
-                            # Parse the email date and convert to a standard format for comparison
-                            try:
-                                parsed_date = datetime.strptime(email_date,
-                                                                "%a, %d %b %Y %H:%M:%S %z")
-                            except ValueError:
-                                self.logger.warning(f"Failed to parse date: {email_date}")
-                                continue
-
-                            # Filter by specific date (YYYY-MM-DD)
-                            if "date" in filters:
-                                filter_date = datetime.strptime(filters["date"], "%Y-%m-%d")
-                                if parsed_date.date() != filter_date.date():
-                                    continue
-
-                            # Add the email to the result list if all filters pass
+                        # Apply dynamic filters
+                        if self._apply_filters(filters, email_from, email_subject, email_body,
+                                               email_date):
                             emails.append({
-                                "email_id": email_id.decode(),  # Add email_id here
+                                "email_id": email_id.decode(),
                                 "subject": email_subject,
                                 "from": email_from,
                                 "date": email_date
                             })
 
-                            # Stop collecting emails once the desired count is reached
-                            if len(emails) >= count:
-                                break
+                        # Stop collecting emails once the desired count is reached
+                        if len(emails) >= count:
+                            break
 
-                    self.logger.info(f"Successfully retrieved {operation_type} emails.")
-                    return emails
-                else:
-                    self.logger.warning(f"Failed to retrieve emails.")
-                    return []
+                self.logger.info(f"Successfully retrieved {operation_type} emails.")
+                return emails
         except Exception as e:
             self.logger.error(f"Error listing emails: {e}", exc_info=True)
-            raise
+            raise EmailListingError(f"Error listing emails: {e}")
 
-    def delete(self, email_id: str) -> bool:
+    def _apply_filters(self, filters: Dict[str, str], email_from: str, email_subject: str,
+                       email_body: str, email_date: str) -> bool:
+        """
+        Applies dynamic filters to the email data.
+
+        Args:
+            filters (Dict[str, str]): The filters to apply.
+            email_from (str): The email sender's address.
+            email_subject (str): The subject of the email.
+            email_body (str): The body content of the email.
+            email_date (str): The date of the email.
+
+        Returns:
+            bool: True if the email passes all filters, False otherwise.
+        """
+        # Filter by sender email (contains match)
+        if "from" in filters and filters["from"].lower() not in email_from.lower():
+            return False
+
+        # Filter by sender name (contains match in the "from" field)
+        if "name" in filters and filters["name"].lower() not in email_from.lower():
+            return False
+
+        # Filter by subject (contains match)
+        if "subject" in filters and filters["subject"].lower() not in email_subject.lower():
+            return False
+
+        # Filter by body content (contains match)
+        if "body" in filters and filters["body"].lower() not in email_body.lower():
+            return False
+
+        # Parse the email date and convert to a standard format for comparison
+        try:
+            parsed_date = datetime.strptime(email_date, "%a, %d %b %Y %H:%M:%S %z")
+        except ValueError:
+            self.logger.warning(f"Failed to parse date: {email_date}")
+            return False
+
+        # Filter by specific date (YYYY-MM-DD)
+        if "date" in filters:
+            filter_date = datetime.strptime(filters["date"], "%Y-%m-%d")
+            if parsed_date.date() != filter_date.date():
+                return False
+
+        return True
+
+    def delete(self, email_id: str) -> None:
         """
         Deletes an email with the given email ID from the inbox.
 
-        Returns True if the email was successfully deleted, False otherwise.
+        This method marks the email as deleted and then permanently removes it
+        by expunging the mailbox. If any part of the process fails, it raises
+        an EmailDeletionError.
+
+        Args:
+            email_id (str): The ID of the email to delete.
+
+        Raises:
+            EmailDeletionError: If the email could not be marked as deleted or permanently expunged.
+            Exception: For other general errors during the deletion process.
         """
         self.logger.info(f"Attempting to delete email with ID {email_id}")
         try:
-            with imaplib.IMAP4_SSL(self.imap_server) as mail:
-                mail.login(self.imap_user, self.imap_password)
+            # Connection and login via ImapConnector
+            with self.imap_connector.connect_and_login() as mail:
                 mail.select("inbox")
 
                 # Mark the email for deletion
-                mail.store(email_id, '+FLAGS', '\\Deleted')
+                status, _ = mail.store(email_id, '+FLAGS', '\\Deleted')
+                if status != "OK":
+                    self.logger.warning(f"Failed to mark email with ID {email_id} as deleted.")
+                    raise EmailDeletionError(f"Failed to mark email with ID {email_id} as deleted.")
 
                 # Permanently delete the email
-                mail.expunge()
+                status, _ = mail.expunge()
+                if status != "OK":
+                    self.logger.warning(f"Failed to expunge deleted email with ID {email_id}.")
+                    raise EmailDeletionError(f"Failed to expunge deleted email with ID {email_id}.")
 
                 self.logger.info(f"Successfully deleted email with ID {email_id}")
-                return True
         except Exception as e:
             self.logger.error(f"Failed to delete email with ID {email_id}: {e}", exc_info=True)
-            return False
-
+            raise

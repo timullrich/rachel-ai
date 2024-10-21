@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 
 # local modules
 from src.connectors import OpenAiConnector, StreamSplitter
+from src.connectors import SmtpConnector, ImapConnector
+
 from src.entities import AudioRecordResult
 from src.services import AudioService, ChatService, EmailService
 from src.executors import CommandExecutor, EmailExecutor
@@ -65,17 +67,27 @@ if __name__ == "__main__":
     logger: logging.Logger = setup_logging(log_level)
 
     # Init OpenAiConnector
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    open_ai_connector: OpenAiConnector = OpenAiConnector(openai_api_key)
+    open_ai_connector: OpenAiConnector = OpenAiConnector(os.getenv("OPENAI_API_KEY"))
 
-    # Init EmailService with credentials from .env or similar
-    email_service = EmailService(
-        smtp_server=os.getenv("SMTP_SERVER", "smtp.example.com"),
-        smtp_user=os.getenv("SMTP_USER", "your-email@example.com"),
-        smtp_password=os.getenv("SMTP_PASSWORD", "your-password"),
-        imap_server=os.getenv("IMAP_SERVER", "imap.example.com"),
-        imap_user=os.getenv("IMAP_USER", "your-email@example.com"),
-        imap_password=os.getenv("IMAP_PASSWORD", "your-password")
+    # Init email connectors
+    smtp_connector: SmtpConnector = SmtpConnector(
+        os.getenv("SMTP_SERVER"),
+        smtp_user=os.getenv("SMTP_USER"),
+        smtp_password=os.getenv("SMTP_PASSWORD")
+    )
+    imap_connector: ImapConnector = ImapConnector(
+        imap_server=os.getenv("IMAP_SERVER"),
+        imap_user=os.getenv("IMAP_USER"),
+        imap_password=os.getenv("IMAP_PASSWORD")
+    )
+
+    # Init services
+    email_service = EmailService(smtp_connector, imap_connector)
+
+    audio_service = AudioService(
+        open_ai_connector,
+        user_language=user_language,
+        sound_theme=sound_theme
     )
 
     # application variables
@@ -90,16 +102,11 @@ if __name__ == "__main__":
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
-    # Init services
+    # chat service needs to be initialized after the executors
     chat_service = ChatService(
         open_ai_connector,
         user_language=user_language,
         executors=executors
-    )
-    audio_service = AudioService(
-        open_ai_connector,
-        user_language=user_language,
-        sound_theme=sound_theme
     )
 
     try:
