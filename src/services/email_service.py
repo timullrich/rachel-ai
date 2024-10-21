@@ -111,3 +111,27 @@ class EmailService:
             self.logger.error(f"Error listing emails: {e}", exc_info=True)
             raise
 
+    def delete(self, email_id: str) -> bool:
+        """
+        Deletes an email with the given email ID from the inbox.
+
+        Returns True if the email was successfully deleted, False otherwise.
+        """
+        self.logger.info(f"Attempting to delete email with ID {email_id}")
+        try:
+            with imaplib.IMAP4_SSL(self.imap_server) as mail:
+                mail.login(self.imap_user, self.imap_password)
+                mail.select("inbox")
+
+                # Mark the email for deletion
+                mail.store(email_id, '+FLAGS', '\\Deleted')
+
+                # Permanently delete the email
+                mail.expunge()
+
+                self.logger.info(f"Successfully deleted email with ID {email_id}")
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to delete email with ID {email_id}: {e}", exc_info=True)
+            return False
+

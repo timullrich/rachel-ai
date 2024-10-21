@@ -10,29 +10,29 @@ class EmailExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "email_operations",
-            "description": f"Performs various email operations like sending, listing emails, or fetching specific emails. When sending an email, it must include the signature some nice grettings and my name '{self.username}' at the end of the email body. Always aks before you really send the Email!",
+            "description": f"Performs various email operations like sending, listing emails, fetching, or deleting specific emails. When sending an email, it must include the signature some nice greetings and my name '{self.username}' at the end of the email body.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The email operation to perform: 'send', 'list', 'get'"
+                        "description": "The email operation to perform: 'send', 'list', 'get', 'delete'"
                     },
                     "to": {
                         "type": "string",
-                        "description": "Recipient email address (only required for 'send' operation) Always aks before you really send the Email!"
+                        "description": "Recipient email address (only required for 'send' operation). Always ask before you really send the Email!"
                     },
                     "subject": {
                         "type": "string",
                         "description": "Email subject (only required for 'send' operation)"
                     },
                     "body": {
-                      "type": "string",
-                        "description": f"Email body text (only required for 'send' operation). Ensure to include the message body followed  with some nice greetings and my name '{self.username}' as the signature."
+                        "type": "string",
+                        "description": f"Email body text (only required for 'send' operation). Ensure to include the message body followed with some nice greetings and my name '{self.username}' as the signature."
                     },
                     "email_id": {
                         "type": "string",
-                        "description": "The ID of the email to retrieve (only required for 'getl' operation)"
+                        "description": "The ID of the email to retrieve or delete (required for 'get' and 'delete' operations)"
                     },
                     "unread_only": {
                         "type": "boolean",
@@ -66,6 +66,12 @@ class EmailExecutor(ExecutorInterface):
             email_id = arguments.get("email_id")
             email_content = self.email_service.get(email_id)
             return email_content or f"No email found with ID {email_id}."
+        elif operation == "delete":
+            email_id = arguments.get("email_id")
+            if not email_id:
+                return "No email ID provided for deletion."
+            success = self.email_service.delete(email_id)
+            return f"Email with ID {email_id} successfully deleted." if success else f"Failed to delete email with ID {email_id}."
         else:
             return f"Invalid operation: {operation}"
 
