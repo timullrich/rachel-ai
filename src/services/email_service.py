@@ -62,7 +62,7 @@ class EmailService:
             self.logger.error(f"Failed to send email to {to}: {e}", exc_info=True)
             raise
 
-    def get(self, id: str) -> Dict[str, str]:
+    def get(self, email_id: str) -> str:
         """
         Fetches the content of a specific email using its ID.
 
@@ -70,45 +70,32 @@ class EmailService:
         given ID, and logs all significant steps.
 
         Args:
-            id (str): The ID of the email to fetch.
+            email_id (str): The ID of the email to fetch.
 
         Returns:
-            Dict[str, str]: A dictionary with email details including 'subject', 'from', 'to',
-                            'date', and 'body'.
+            str: The raw content of the email as a UTF-8 decoded string.
 
         Raises:
-            ConnectionError: If there is a problem connecting or authenticating with the IMAP server.
-            EmailNotFoundError: If the email with the given ID is not found or cannot be fetched.
-            Exception: For other general errors during the fetching process.
+            EmailNotFoundError: If the email with the given ID cannot be fetched.
+            Exception: For any other errors during the fetching process.
         """
-        self.logger.info(f"Attempting to fetch email with ID {id}")
+        self.logger.info(f"Attempting to fetch email with ID {email_id}")
+
         try:
-            # Connection and login via ImapConnector
             with self.imap_connector.connect_and_login() as mail:
                 mail.select("inbox")
-                status, message_data = mail.fetch(id, "(RFC822)")
+                status, message_data = mail.fetch(email_id, "(RFC822)")
 
-                if status == "OK":
-                    # Parse the email content
-                    email_message = BytesParser().parsebytes(message_data[0][1])
+                if status != "OK":
+                    self.logger.warning(f"Failed to fetch email with ID {email_id}")
+                    raise EmailNotFound(f"Email with ID {email_id} not found.")
 
-                    # Create structured response
-                    email_details = {
-                        "subject": email_message.get("subject"),
-                        "from": email_message.get("from"),
-                        "to": email_message.get("to"),
-                        "date": email_message.get("date"),
-                        "body": email_message.get_payload(decode=True).decode('utf-8',
-                                                                              errors='ignore')
-                    }
+                email_message = message_data[0][1].decode("utf-8")
+                self.logger.info(f"Successfully fetched email with ID {email_id}")
+                return email_message
 
-                    self.logger.info(f"Successfully fetched email with ID {id}")
-                    return email_details
-                else:
-                    self.logger.warning(f"Email with ID {id} not found.")
-                    raise EmailNotFound(f"Email with ID {id} not found.")
         except Exception as e:
-            self.logger.error(f"Error fetching email with ID {id}: {e}", exc_info=True)
+            self.logger.error(f"Error fetching email with ID {email_id}: {e}", exc_info=True)
             raise
 
     def list(self, count: int = 5, unread_only: bool = False,
