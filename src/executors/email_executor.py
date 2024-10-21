@@ -120,8 +120,11 @@ class EmailExecutor(ExecutorInterface):
             email_id = arguments.get("email_id")
             if not email_id:
                 return "No email ID provided for deletion."
-            success = self.email_service.delete(email_id)
-            return f"Email with ID {email_id} successfully deleted." if success else f"Failed to delete email with ID {email_id}."
+            try:
+                self.email_service.delete(email_id)
+                return f"Email with ID {email_id} successfully deleted."
+            except Exception as e:
+                return f"An unexpected error occurred while deleting email with ID {email_id}: {str(e)}"
         else:
             return f"Invalid operation: {operation}"
 
