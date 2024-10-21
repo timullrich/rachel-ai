@@ -16,11 +16,11 @@ class EmailExecutor(ExecutorInterface):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The email operation to perform: 'send', 'list', 'get_email'"
+                        "description": "The email operation to perform: 'send', 'list', 'get'"
                     },
                     "to": {
                         "type": "string",
-                        "description": "Recipient email address (only required for 'send' operation)"
+                        "description": "Recipient email address (only required for 'send' operation) Always aks before you really send the Email!"
                     },
                     "subject": {
                         "type": "string",
@@ -32,7 +32,7 @@ class EmailExecutor(ExecutorInterface):
                     },
                     "email_id": {
                         "type": "string",
-                        "description": "The ID of the email to retrieve (only required for 'get_email' operation)"
+                        "description": "The ID of the email to retrieve (only required for 'getl' operation)"
                     },
                     "unread_only": {
                         "type": "boolean",
@@ -54,17 +54,17 @@ class EmailExecutor(ExecutorInterface):
             to = arguments.get("to")
             subject = arguments.get("subject")
             body = arguments.get("body")
-            return self.email_service.send_email(to, subject, body)
+            return self.email_service.send(to, subject, body)
         elif operation == "list":
             unread_only = arguments.get("unread_only", False)
             count = arguments.get("count", 5)
             emails = self.email_service.list(count=count, unread_only=unread_only)
             if not emails:
                 return "No emails found."
-            return "\n".join([f"From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
-        elif operation == "get_email":
+            return "\n".join([f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}" for email in emails])
+        elif operation == "get":
             email_id = arguments.get("email_id")
-            email_content = self.email_service.get_email(email_id)
+            email_content = self.email_service.get(email_id)
             return email_content or f"No email found with ID {email_id}."
         else:
             return f"Invalid operation: {operation}"

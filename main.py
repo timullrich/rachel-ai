@@ -106,7 +106,7 @@ if __name__ == "__main__":
         while True:
             if args.silent:
                 # Silent mode: Use text input/output
-                user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL)
+                user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL).encode('utf-8', 'replace').decode('utf-8')
 
                 # Send user input to GPT and get response stream
                 stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
@@ -157,5 +157,5 @@ if __name__ == "__main__":
                 audio_output_thread.join()
 
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
-        sys.exit()  # Exit the entire script
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+        sys.exit(1)  # Exit the entire script with a non-zero exit code

@@ -1,8 +1,13 @@
+# Standard library imports
+import logging
 import smtplib
 import imaplib
-import logging
+
+# Email handling imports
 from email.mime.text import MIMEText
 from email.parser import BytesParser
+
+# Typing imports
 from typing import List, Optional
 
 
@@ -17,7 +22,7 @@ class EmailService:
         self.imap_password = imap_password
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def send_email(self, to: str, subject: str, body: str) -> str:
+    def send(self, to: str, subject: str, body: str) -> str:
         """Sends an email via SMTP with error handling and logging."""
         self.logger.info(f"Attempting to send email to {to}")
         try:
@@ -36,24 +41,24 @@ class EmailService:
             self.logger.error(f"Failed to send email to {to}: {e}", exc_info=True)
             raise
 
-    def get_email(self, email_id: str) -> Optional[str]:
+    def get(self, id: str) -> Optional[str]:
         """Fetches the content of a specific email with error handling and logging."""
-        self.logger.info(f"Attempting to fetch email with ID {email_id}")
+        self.logger.info(f"Attempting to fetch email with ID {id}")
         try:
             with imaplib.IMAP4_SSL(self.imap_server) as mail:
                 mail.login(self.imap_user, self.imap_password)
                 mail.select("inbox")
-                status, message_data = mail.fetch(email_id, "(RFC822)")
+                status, message_data = mail.fetch(id, "(RFC822)")
 
                 if status == "OK":
                     email_message = message_data[0][1].decode("utf-8")
-                    self.logger.info(f"Successfully fetched email with ID {email_id}")
+                    self.logger.info(f"Successfully fetched email with ID {id}")
                     return email_message
                 else:
-                    self.logger.warning(f"Failed to fetch email with ID {email_id}")
+                    self.logger.warning(f"Failed to fetch email with ID {id}")
                     return None
         except Exception as e:
-            self.logger.error(f"Error fetching email with ID {email_id}: {e}", exc_info=True)
+            self.logger.error(f"Error fetching email with ID {id}: {e}", exc_info=True)
             raise
 
     def list(self, count: int = 5, unread_only: bool = False) -> List[dict]:
@@ -91,6 +96,7 @@ class EmailService:
                             # Parse the email content
                             email_message = BytesParser().parsebytes(message_data[0][1])
                             emails.append({
+                                "email_id": email_id.decode(),  # Add email_id here
                                 "subject": email_message.get("subject"),
                                 "from": email_message.get("from"),
                                 "date": email_message.get("date")
@@ -104,3 +110,4 @@ class EmailService:
         except Exception as e:
             self.logger.error(f"Error listing emails: {e}", exc_info=True)
             raise
+

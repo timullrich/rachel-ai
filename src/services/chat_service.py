@@ -114,10 +114,6 @@ class ChatService:
                         # Collect arguments
                         function_call_arguments += choice.function_call.arguments
 
-                # Break if we have the full function call
-                if function_call_name and function_call_arguments.endswith('}'):
-                    break
-
             # Process the function call if detected
             if function_call_name:
                 self.logger.info(
