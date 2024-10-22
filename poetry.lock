@@ -270,6 +270,20 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "imapclient"
+version = "3.0.1"
+description = "Easy-to-use, Pythonic and complete IMAP client library"
+optional = false
+python-versions = ">=3.7.0"
+files = [
+    {file = "IMAPClient-3.0.1-py2.py3-none-any.whl", hash = "sha256:d77d77caa4123e0233b5cf2b9c54a078522e63270b88d3f48653a28637fd8828"},
+    {file = "IMAPClient-3.0.1.zip", hash = "sha256:78e6d62fbfbbe233e1f0e0e993160fd665eb1fd35973acddc61c15719b22bc02"},
+]
+
+[package.extras]
+doc = ["sphinx"]
+
+[[package]]
 name = "jinja2"
 version = "3.1.4"
 description = "A very fast and expressive template engine."
@@ -1021,4 +1035,4 @@ dev = ["check-manifest", "memory_profiler", "nose", "psutil", "unittest2", "zest
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12"
-content-hash = "a94ef10100b8bc6c0430e41f13b95fed940a7c140ed0157b41b8207b95f88a3d"
+content-hash = "f7a2b43af2d4d2375705f7c2c66eaa92337332a03e8a15e072eacd677b795fef"

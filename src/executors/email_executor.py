@@ -44,51 +44,10 @@ class EmailExecutor(ExecutorInterface):
                         "type": "string",
                         "description": "The ID of the email to retrieve or delete (required for 'get' and 'delete' operations)"
                     },
-                    "unread_only": {
-                        "type": "boolean",
-                        "description": "Whether to list only unread emails (only used for 'list' operation)"
-                    },
                     "count": {
                         "type": "integer",
                         "description": "Number of emails to list (only used for 'list' operation)"
                     },
-                    "filters": {
-                        "type": "object",
-                        "description": (
-                            "Optional filters for listing emails, such as 'from', 'subject', 'before', 'after', 'body', and more. "
-                            "Used only for listing emails."
-                        ),
-                        "properties": {
-                            "from": {
-                                "type": "string",
-                                "description": "Filter emails by the sender's email address (contains match)"
-                            },
-                            "name": {
-                                "type": "string",
-                                "description": "Filter emails by the sender's name (contains match)"
-                            },
-                            "subject": {
-                                "type": "string",
-                                "description": "Filter emails by the subject (contains match)"
-                            },
-                            "before": {
-                                "type": "string",
-                                "description": "Filter emails sent before a specific date (YYYY-MM-DD)"
-                            },
-                            "after": {
-                                "type": "string",
-                                "description": "Filter emails sent after a specific date (YYYY-MM-DD)"
-                            },
-                            "date": {
-                                "type": "string",
-                                "description": "Filter emails sent on a specific date (YYYY-MM-DD)"
-                            },
-                            "body": {
-                                "type": "string",
-                                "description": "Filter emails whose body contains a specific string"
-                            }
-                        }
-                    }
                 },
                 "required": ["operation"]
             }
@@ -102,20 +61,24 @@ class EmailExecutor(ExecutorInterface):
             subject = arguments.get("subject")
             body = arguments.get("body")
             return self.email_service.send(to, subject, body)
+
         elif operation == "list":
-            unread_only = arguments.get("unread_only", False)
             count = arguments.get("count", 5)
-            filters = arguments.get("filters", {})
-            emails = self.email_service.list(count=count, unread_only=unread_only, filters=filters)
+            emails = self.email_service.list(count=count)
             if not emails:
                 return "No emails found."
             return "\n".join([
-                                 f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
-                                 for email in emails])
+                f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
+                for email in emails
+            ])
+
         elif operation == "get":
             email_id = arguments.get("email_id")
-            email_content = self.email_service.get(email_id)
-            return email_content or f"No email found with ID {email_id}."
+            email_content = self.email_service.get(email_id)  # Fetch the last email
+            if email_content:
+                return email_content  # Return the first email in the list
+            return f"No email found with ID {email_id}."
+
         elif operation == "delete":
             email_id = arguments.get("email_id")
             if not email_id:
@@ -125,6 +88,7 @@ class EmailExecutor(ExecutorInterface):
                 return f"Email with ID {email_id} successfully deleted."
             except Exception as e:
                 return f"An unexpected error occurred while deleting email with ID {email_id}: {str(e)}"
+
         else:
             return f"Invalid operation: {operation}"
 

@@ -1,4 +1,4 @@
-import imaplib
+from imapclient import IMAPClient
 
 class ImapConnector:
     """
@@ -12,15 +12,17 @@ class ImapConnector:
         self.imap_user = imap_user
         self.imap_password = imap_password
 
-    def connect_and_login(self) -> imaplib.IMAP4_SSL:
+    def connect_and_login(self) -> IMAPClient:
         """
         Establishes a connection to the IMAP server and logs in with the provided credentials.
 
         Returns:
-            imaplib.IMAP4_SSL: The authenticated IMAP connection object.
+            IMAPClient: The authenticated IMAP connection object.
         """
         try:
-            mail = imaplib.IMAP4_SSL(self.imap_server)
+            # Establish an IMAP connection using SSL
+            mail = IMAPClient(self.imap_server, ssl=True)
+            # Log in to the IMAP server
             mail.login(self.imap_user, self.imap_password)
             return mail
         except Exception as e:

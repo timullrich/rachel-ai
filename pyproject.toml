@@ -16,6 +16,7 @@ webrtcvad = "^2.0.10"
 colorama = "^0.4.6"
 pvporcupine = "^3.0.3"
 pygame = "^2.6.1"
+imapclient = "^3.0.1"
 
 [build-system]
 requires = ["poetry-core"]
