@@ -14,6 +14,7 @@ class EmailExecutor(ExecutorInterface):
             "description": (
                 "Performs various email operations like sending, listing emails, fetching, or deleting specific emails. "
                 f"When sending an email, it must include the signature with some nice greetings and my name '{self.username}' at the end of the email body. "
+                "Always do a new list function call and dont use results from before! For the 'list' operation, at least one filter (e.g., count, from_filter, subject_filter, unread_only, or a date range) must be provided. "
                 "Before sending the email, always ask the user for confirmation explicitly and ensure they respond with 'yes', 'confirm', or a similar affirmative reply. "
                 "If the user does not explicitly confirm, do not send the email. Always clarify the intent to send and wait for explicit confirmation. "
                 "Never assume confirmation unless the user clearly responds affirmatively."
@@ -47,7 +48,7 @@ class EmailExecutor(ExecutorInterface):
                     },
                     "count": {
                         "type": "integer",
-                        "description": "Number of emails to search through (only used for 'list' operation)"
+                        "description": "Number of emails to search through (only used for 'list' operation). Ignored if date range is provided."
                     },
                     "from_filter": {
                         "type": "string",
