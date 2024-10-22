@@ -13,9 +13,10 @@ from dotenv import load_dotenv
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.connectors import SmtpConnector, ImapConnector
 
+
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService
-from src.executors import CommandExecutor, EmailExecutor
+from src.services import AudioService, ChatService, EmailService, ContactsService
+from src.executors import CommandExecutor, EmailExecutor, ContactExecutor
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -63,11 +64,19 @@ if __name__ == "__main__":
 
     username: str = os.getenv("USERNAME")
 
+    # Anwendungspezifisches icloud passwort (rachel-ai)
+    #[REDACTED]
+
     # Configure logging
     logger: logging.Logger = setup_logging(log_level)
 
     # Init OpenAiConnector
     open_ai_connector: OpenAiConnector = OpenAiConnector(os.getenv("OPENAI_API_KEY"))
+
+    icloud_user = "[REDACTED_EMAIL]"
+    # icloud_password = "[REDACTED]"
+    icloud_password = "[REDACTED]"
+
 
     # Init email connectors
     smtp_connector: SmtpConnector = SmtpConnector(
@@ -83,6 +92,7 @@ if __name__ == "__main__":
 
     # Init services
     email_service = EmailService(smtp_connector, imap_connector)
+    contacts_service = ContactsService(f"{script_dir}/resources/contacts.vcf")
 
     audio_service = AudioService(
         open_ai_connector,
@@ -99,6 +109,7 @@ if __name__ == "__main__":
     executors = [
         CommandExecutor(),
         EmailExecutor(email_service, username),
+        ContactExecutor(contacts_service)
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
