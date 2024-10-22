@@ -1,4 +1,5 @@
 from typing import Dict, Any
+from datetime import datetime
 from ._executor_interface import ExecutorInterface
 
 
@@ -46,7 +47,27 @@ class EmailExecutor(ExecutorInterface):
                     },
                     "count": {
                         "type": "integer",
-                        "description": "Number of emails to list (only used for 'list' operation)"
+                        "description": "Number of emails to search through (only used for 'list' operation)"
+                    },
+                    "from_filter": {
+                        "type": "string",
+                        "description": "Filter for sender email address (only used for 'list' operation)"
+                    },
+                    "subject_filter": {
+                        "type": "string",
+                        "description": "Filter for email subject (only used for 'list' operation)"
+                    },
+                    "unread_only": {
+                        "type": "boolean",
+                        "description": "If true, only return unread emails (only used for 'list' operation)"
+                    },
+                    "date_from": {
+                        "type": "string",
+                        "description": "Start date for filtering emails (only used for 'list' operation)"
+                    },
+                    "date_to": {
+                        "type": "string",
+                        "description": "End date for filtering emails (only used for 'list' operation)"
                     },
                 },
                 "required": ["operation"]
@@ -63,20 +84,70 @@ class EmailExecutor(ExecutorInterface):
             return self.email_service.send(to, subject, body)
 
         elif operation == "list":
-            count = arguments.get("count", 5)
-            emails = self.email_service.list(count=count)
+
+            # Retrieve all optional filters for the list operation
+
+            count = arguments.get("count")
+
+            from_filter = arguments.get("from_filter")
+
+            subject_filter = arguments.get("subject_filter")
+
+            unread_only = arguments.get("unread_only", False)
+
+            # Handle date_from and date_to conversion from string to datetime object
+
+            date_from = arguments.get("date_from")
+
+            date_to = arguments.get("date_to")
+
+            # Convert date_from and date_to from strings to datetime objects if provided
+
+            if date_from:
+                date_from = datetime.strptime(date_from, '%Y-%m-%d')
+
+            if date_to:
+                date_to = datetime.strptime(date_to, '%Y-%m-%d')
+
+            # If date_from or date_to is provided, ignore 'count'
+
+            if date_from or date_to:
+                count = None  # Ignore count if date range is used
+
+            # Call the email service list method with the provided filters
+
+            emails = self.email_service.list(
+
+                count=count,
+
+                from_filter=from_filter,
+
+                subject_filter=subject_filter,
+
+                unread_only=unread_only,
+
+                date_from=date_from,
+
+                date_to=date_to
+
+            )
+
             if not emails:
                 return "No emails found."
+
             return "\n".join([
+
                 f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
+
                 for email in emails
+
             ])
 
         elif operation == "get":
             email_id = arguments.get("email_id")
-            email_content = self.email_service.get(email_id)  # Fetch the last email
+            email_content = self.email_service.get(email_id)
             if email_content:
-                return email_content  # Return the first email in the list
+                return email_content
             return f"No email found with ID {email_id}."
 
         elif operation == "delete":

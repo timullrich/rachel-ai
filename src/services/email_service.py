@@ -101,54 +101,84 @@ class EmailService:
             self.logger.error(f"Error fetching email with ID {email_id}: {e}", exc_info=True)
             raise
 
-    def list(self, count: int = 5) -> List[Dict[str, str]]:
+    def list(
+            self,
+            count: Optional[int] = None,
+            from_filter: Optional[str] = None,
+            subject_filter: Optional[str] = None,
+            unread_only: bool = False,
+            date_from: Optional[datetime] = None,
+            date_to: Optional[datetime] = None
+    ) -> List[Dict[str, str]]:
         """
-        Fetches the last 'count' received emails from the inbox.
+        Fetches a list of emails with optional filters applied.
 
         Args:
-            count (int): The number of emails to fetch.
+            count (Optional[int]): The number of emails to search through.
+            from_filter (Optional[str]): Filter emails by sender.
+            subject_filter (Optional[str]): Filter emails by subject content.
+            unread_only (bool): If True, only return unread emails.
+            date_from (Optional[datetime]): Start date for filtering emails.
+            date_to (Optional[datetime]): End date for filtering emails.
 
         Returns:
             List[Dict[str, str]]: A list of dictionaries containing email details (subject, from, date).
         """
-        self.logger.info(f"Attempting to fetch the last {count} emails")
+        self.logger.info(
+            f"Fetching emails with filters: count={count}, from_filter={from_filter}, subject_filter={subject_filter}, unread_only={unread_only}, date_from={date_from}, date_to={date_to}")
 
         try:
             with self.imap_connector.connect_and_login() as mail:
-                mail.select_folder("INBOX")  # Select the inbox folder
+                mail.select_folder("INBOX")
 
-                # Retrieve the total number of emails
-                messages = mail.search(["ALL"])  # Retrieve all email IDs
+                # Build the search criteria
+                search_criteria = ['ALL']  # Default to all emails
+
+                if unread_only:
+                    search_criteria.append('UNSEEN')
+
+                if from_filter:
+                    search_criteria.extend(['FROM', from_filter])
+
+                if subject_filter:
+                    search_criteria.extend(['SUBJECT', subject_filter])
+
+                if date_from:
+                    search_criteria.extend(['SINCE', date_from.strftime('%d-%b-%Y')])
+
+                if date_to:
+                    search_criteria.extend(['BEFORE', date_to.strftime('%d-%b-%Y')])
+
+                # Search for messages based on the search criteria
+                messages = mail.search(search_criteria)
 
                 if not messages:
                     self.logger.info("No emails found.")
                     return []
 
-                # Get the last 'count' email IDs
-                email_ids = messages[-count:]  # Slice the last 'count' emails
+                # Limit to the last 'count' emails if count is provided
+                if count:
+                    email_ids = messages[-count:]  # Limit to the last 'count' emails
+                else:
+                    email_ids = messages
 
+                # Fetch the email details
                 emails = []
-                for email_id in reversed(email_ids):  # Reverse to get the newest first
-                    # Fetch the email content
+                for email_id in reversed(email_ids):
                     message_data = mail.fetch([email_id], ['ENVELOPE'])
-
-                    # Extract details
                     envelope = message_data[email_id][b'ENVELOPE']
                     email_subject = envelope.subject.decode('utf-8')
-                    email_from = envelope.from_[0]  # Get the first address
-
-
+                    email_from = envelope.from_[0]
                     email_date = envelope.date.strftime('%Y-%m-%d %H:%M:%S')
 
                     emails.append({
-                        "email_id": str(email_id),  # Convert ID to string
+                        "email_id": str(email_id),
                         "subject": email_subject,
                         "from": str(email_from),
-                        # Use name or address
                         "date": email_date
                     })
 
-                self.logger.info(f"Successfully fetched the last {count} emails.")
+                self.logger.info(f"Successfully fetched {len(emails)} emails.")
                 return emails
 
         except Exception as e:
