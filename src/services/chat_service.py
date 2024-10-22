@@ -135,11 +135,12 @@ class ChatService:
                     "content": result
                 })
 
-                conversation_history.append({
-                    "role": "system",
-                    "content": executor.get_result_interpreter_instructions(
-                        user_language=self.user_language)
-                })
+                # Maybe too much....
+                # conversation_history.append({
+                #     "role": "system",
+                #     "content": executor.get_result_interpreter_instructions(
+                #         user_language=self.user_language)
+                # })
 
                 interpretation_request = {
                     "model": "gpt-4o-mini",
