@@ -23,15 +23,17 @@ class CryptoDataService:
         self.user_language = user_language
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def get_daily_ohlc_last_7_days(self, coin_id: str):
+    def get_ohlc(self, coin_id: str, vs_currency: str = 'usd', days: int = 7):
         """
-        Fetch OHLC data for a specific cryptocurrency for the last 7 days.
+        Fetch OHLC data for a specific cryptocurrency.
 
         Args:
             coin_id (str): The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').
+            vs_currency (str): The reference currency (e.g., 'usd', 'eur'). Default is 'usd'.
+            days (int): The number of days to retrieve data for (e.g., 1, 7, 30). Default is 7.
 
         Returns:
             List: A list of OHLC data where each entry contains [timestamp, open, high, low, close].
         """
-        # Auf den Client zugreifen, um OHLC-Daten für die letzten 7 Tage zu erhalten
-        return self.connector.client.get_coin_ohlc_by_id(id=coin_id, vs_currency='usd', days=7)
+        # Abrufen der OHLC-Daten über den Connector
+        return self.connector.client.get_coin_ohlc_by_id(id=coin_id, vs_currency=vs_currency, days=days)
