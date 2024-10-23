@@ -13,13 +13,13 @@ from dotenv import load_dotenv
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.connectors import SmtpConnector, ImapConnector
 from src.connectors import OpenWeatherMapConnector
-
+from src.connectors import CoinGeckoConnector
 
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService,\
-    WebScraperService
+from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService, \
+    WebScraperService, CryptoDataService
 from src.executors import CommandExecutor, EmailExecutor, ContactExecutor, WeatherExecutor, \
-    WebScraperExecutor
+    WebScraperExecutor, CryptoDataExecutor
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     username: str = os.getenv("USERNAME")
 
     # Anwendungspezifisches icloud passwort (rachel-ai)
-    #[REDACTED]
+    # [REDACTED]
 
     # Configure logging
     logger: logging.Logger = setup_logging(log_level)
@@ -79,7 +79,6 @@ if __name__ == "__main__":
     icloud_user = "[REDACTED_EMAIL]"
     # icloud_password = "[REDACTED]"
     icloud_password = "[REDACTED]"
-
 
     # Init email connectors
     smtp_connector: SmtpConnector = SmtpConnector(
@@ -97,13 +96,14 @@ if __name__ == "__main__":
         os.getenv("OPEN_WEATHER_MAP_API_KEY")
     )
 
+    coin_gecko_connector: CoinGeckoConnector = CoinGeckoConnector()
 
     # Init services
     email_service = EmailService(smtp_connector, imap_connector)
     contacts_service = ContactService(f"{script_dir}/resources/contacts.vcf")
     weather_service = WeatherService(weather_connector)
     web_scraper_service = WebScraperService()
-
+    crypto_data_service = CryptoDataService(coin_gecko_connector)
 
     audio_service = AudioService(
         open_ai_connector,
@@ -123,6 +123,7 @@ if __name__ == "__main__":
         ContactExecutor(contacts_service),
         WeatherExecutor(weather_service),
         WebScraperExecutor(web_scraper_service),
+        CryptoDataExecutor(crypto_data_service)
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 

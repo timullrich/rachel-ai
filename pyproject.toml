@@ -19,6 +19,7 @@ pygame = "^2.6.1"
 imapclient = "^3.0.1"
 pyowm = "^3.3.0"
 bs4 = "^0.0.2"
+pycoingecko = "^3.1.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -826,6 +826,20 @@ files = [
 ]
 
 [[package]]
+name = "pycoingecko"
+version = "3.1.0"
+description = "Python wrapper around the CoinGecko API"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pycoingecko-3.1.0-py3-none-any.whl", hash = "sha256:5798240c0ffccfea14635b7ce42f90e49c8ba54a3cfa3e233fcc99df087485f6"},
+    {file = "pycoingecko-3.1.0.tar.gz", hash = "sha256:dcc08522c160e88bd1deb50bbab390be33dce87abb10a91ce6013d15bf859c12"},
+]
+
+[package.dependencies]
+requests = "*"
+
+[[package]]
 name = "pycparser"
 version = "2.22"
 description = "C parser in Python"
@@ -1276,4 +1290,4 @@ dev = ["check-manifest", "memory_profiler", "nose", "psutil", "unittest2", "zest
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12"
-content-hash = "e65de4afea33e296732ee46bac85ec714c2f3a4cce3be561e3ed022fc2b8d5ca"
+content-hash = "65a464be4ad71e396e52e5fe703e5195ba6c7304e5e34c562abeb85f66ce864d"

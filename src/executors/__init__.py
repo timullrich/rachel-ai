@@ -4,6 +4,7 @@ from .email_executor import EmailExecutor
 from .contact_executor import ContactExecutor
 from .weather_executor import WeatherExecutor
 from .web_scraper_executor import WebScraperExecutor
+from .crypto_data_executor import CryptoDataExecutor
 
 __all__ = [
     "ExecutorInterface",
@@ -12,4 +13,5 @@ __all__ = [
     "ContactExecutor",
     "WeatherExecutor",
     "WebScraperExecutor",
+    "CryptoDataExecutor",
 ]
