@@ -134,8 +134,8 @@ if __name__ == "__main__":
         executors=executors
     )
 
-    try:
-        while True:
+    while True:
+        try:
             if args.silent:
                 # Silent mode: Use text input/output
                 user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL)
@@ -188,6 +188,5 @@ if __name__ == "__main__":
                 text_output_thread.join()
                 audio_output_thread.join()
 
-    except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
-        sys.exit(1)  # Exit the entire script with a non-zero exit code
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
