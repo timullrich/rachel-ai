@@ -124,11 +124,21 @@ class EmailExecutor(ExecutorInterface):
                 for email in emails
             ])
 
+
         elif operation == "get":
+
             email_id = arguments.get("email_id")
+
+            # Ensure email_id is a string and not a list
+
+            if isinstance(email_id, list):
+                email_id = email_id[0]
+
             email_content = self.email_service.get(email_id)
+
             if email_content:
                 return email_content
+
             return f"No email found with ID {email_id}."
 
         elif operation == "delete":
