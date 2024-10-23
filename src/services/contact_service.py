@@ -4,7 +4,7 @@ import logging
 import vobject
 
 
-class ContactsService:
+class ContactService:
     def __init__(
             self, contacts_file_path: str,
             user_language: str = "en"

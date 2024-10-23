@@ -15,7 +15,7 @@ from src.connectors import SmtpConnector, ImapConnector
 
 
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService, ContactsService
+from src.services import AudioService, ChatService, EmailService, ContactService
 from src.executors import CommandExecutor, EmailExecutor, ContactExecutor
 
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     # Init services
     email_service = EmailService(smtp_connector, imap_connector)
-    contacts_service = ContactsService(f"{script_dir}/resources/contacts.vcf")
+    contacts_service = ContactService(f"{script_dir}/resources/contacts.vcf")
 
     audio_service = AudioService(
         open_ai_connector,
