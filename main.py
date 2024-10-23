@@ -12,11 +12,12 @@ from dotenv import load_dotenv
 # local modules
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.connectors import SmtpConnector, ImapConnector
+from src.connectors import OpenWeatherMapConnector
 
 
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService, ContactService
-from src.executors import CommandExecutor, EmailExecutor, ContactExecutor
+from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService
+from src.executors import CommandExecutor, EmailExecutor, ContactExecutor, WeatherExecutor
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -90,9 +91,16 @@ if __name__ == "__main__":
         imap_password=os.getenv("IMAP_PASSWORD")
     )
 
+    weather_connector: OpenWeatherMapConnector = OpenWeatherMapConnector(
+        os.getenv("OPEN_WEATHER_MAP_API_KEY")
+    )
+
+
     # Init services
     email_service = EmailService(smtp_connector, imap_connector)
     contacts_service = ContactService(f"{script_dir}/resources/contacts.vcf")
+    weather_service = WeatherService(weather_connector)
+
 
     audio_service = AudioService(
         open_ai_connector,
@@ -109,7 +117,8 @@ if __name__ == "__main__":
     executors = [
         CommandExecutor(),
         EmailExecutor(email_service, username),
-        ContactExecutor(contacts_service)
+        ContactExecutor(contacts_service),
+        WeatherExecutor(weather_service),
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 

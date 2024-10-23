@@ -17,6 +17,7 @@ colorama = "^0.4.6"
 pvporcupine = "^3.0.3"
 pygame = "^2.6.1"
 imapclient = "^3.0.1"
+pyowm = "^3.3.0"
 
 [build-system]
 requires = ["poetry-core"]
