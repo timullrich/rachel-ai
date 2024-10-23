@@ -22,22 +22,27 @@ class WeatherExecutor(ExecutorInterface):
         return {
             "name": "weather_operations",
             "description": (
-                f"Performs weather operations. "
-                f"Supports 'get_weather' operation to retrieve current weather data for a city."
+                "Performs weather operations. "
+                "Supports 'get_weather' for current weather and 'get_forecast' for weather forecast."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The weather operation to perform: 'get_weather'"
+                        "description": "The weather operation to perform: 'get_weather', 'get_forecast'"
                     },
                     "city_name": {
                         "type": "string",
                         "description": "The name of the city to retrieve the weather data for."
+                    },
+                    "days_ahead": {
+                        "type": "integer",
+                        "description": "Number of days ahead for the forecast (optional, default is 1)."
                     }
                 },
-                "required": ["operation", "city_name"]
+                "required": ["operation", "city_name"],
+                "additionalProperties": False
             }
         }
 
@@ -46,17 +51,18 @@ class WeatherExecutor(ExecutorInterface):
         Executes the requested weather operation.
 
         Args:
-            arguments (Dict[str, Any]): The operation and city name provided as input.
+            arguments (Dict[str, Any]): The operation, city name, and optional forecast days provided as input.
 
         Returns:
-            str: The result of the weather operation, usually a description of the weather for the city.
+            str: The result of the weather operation, either current weather or forecast data.
         """
         operation = arguments.get("operation")
         city_name = arguments.get("city_name")
+        days_ahead = arguments.get("days_ahead", 1)
 
         if operation == "get_weather":
             try:
-                # Abrufen der Wetterdaten über den WeatherService
+                # Abrufen der aktuellen Wetterdaten über den WeatherService
                 weather_details = self.weather_service.get_weather(city_name)
                 return (
                     f"Weather in {city_name}: {weather_details['description']}, "
@@ -66,6 +72,25 @@ class WeatherExecutor(ExecutorInterface):
                 )
             except Exception as e:
                 return f"Error fetching weather data for {city_name}: {e}"
+
+        elif operation == "get_forecast":
+            try:
+                # Abrufen der Vorhersage über den WeatherService
+                forecast_details = self.weather_service.get_forecast(city_name, days_ahead)
+                forecast_str = f"Forecast for {city_name} for the next {days_ahead} day(s):\n"
+
+                for entry in forecast_details:
+                    forecast_str += (
+                        f"Time: {entry['time']}, "
+                        f"Status: {entry['detailed_status']}, "
+                        f"Temp: {entry['temperature']}°C, "
+                        f"Humidity: {entry['humidity']}%, "
+                        f"Wind speed: {entry['wind_speed']} m/s\n"
+                    )
+                return forecast_str.strip()
+
+            except Exception as e:
+                return f"Error fetching forecast data for {city_name} (for {days_ahead} day(s)): {e}"
 
         else:
             return f"Invalid operation: {operation}"
@@ -80,4 +105,4 @@ class WeatherExecutor(ExecutorInterface):
         Returns:
             str: Instructions for interpreting the result.
         """
-        return "Please summarize the weather details and ask if the user needs any further information."
+        return "Please summarize the weather or forecast details and ask if the user needs any further information."
