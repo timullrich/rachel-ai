@@ -16,8 +16,10 @@ from src.connectors import OpenWeatherMapConnector
 
 
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService
-from src.executors import CommandExecutor, EmailExecutor, ContactExecutor, WeatherExecutor
+from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService,\
+    WebScraperService
+from src.executors import CommandExecutor, EmailExecutor, ContactExecutor, WeatherExecutor, \
+    WebScraperExecutor
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -100,6 +102,7 @@ if __name__ == "__main__":
     email_service = EmailService(smtp_connector, imap_connector)
     contacts_service = ContactService(f"{script_dir}/resources/contacts.vcf")
     weather_service = WeatherService(weather_connector)
+    web_scraper_service = WebScraperService()
 
 
     audio_service = AudioService(
@@ -119,6 +122,7 @@ if __name__ == "__main__":
         EmailExecutor(email_service, username),
         ContactExecutor(contacts_service),
         WeatherExecutor(weather_service),
+        WebScraperExecutor(web_scraper_service),
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
