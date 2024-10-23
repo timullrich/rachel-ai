@@ -3,11 +3,10 @@ import logging
 
 # Email handling imports
 from email.mime.text import MIMEText
-from email.parser import BytesParser
 
 # Typing imports
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 
 # Local application imports
 from src.connectors import SmtpConnector, ImapConnector
@@ -185,41 +184,47 @@ class EmailService:
             self.logger.error(f"Error fetching emails: {e}", exc_info=True)
             raise EmailListingError(f"Error fetching emails: {e}")
 
-    def delete(self, email_id: str) -> None:
+    def delete(self, email_ids: Any) -> None:
         """
-        Deletes an email with the given email ID from the inbox.
+        Deletes one or more emails with the given email ID(s) from the inbox.
 
-        This method marks the email as deleted and then permanently removes it
+        This method marks the email(s) as deleted and then permanently removes them
         by expunging the mailbox. If any part of the process fails, it raises
         an EmailDeletionError.
 
         Args:
-            email_id (str): The ID of the email to delete.
+            email_ids (Union[str, List[str]]): A single email ID or a list of email IDs to delete.
 
         Raises:
-            EmailDeletionError: If the email could not be marked as deleted or permanently expunged.
+            EmailDeletionError: If any email could not be marked as deleted or permanently expunged.
             Exception: For other general errors during the deletion process.
         """
-        self.logger.info(f"Attempting to delete email with ID {email_id}")
+        # Ensure email_ids is a list to handle both single and multiple emails
+        if isinstance(email_ids, str):
+            email_ids = [email_ids]
+
+        self.logger.info(f"Attempting to delete emails with IDs {email_ids}")
         try:
             # Connection and login via ImapConnector
             with self.imap_connector.connect_and_login() as mail:
                 mail.select_folder("INBOX")  # Select the inbox folder
 
-                # Convert email_id to integer if necessary
-                email_id = int(email_id)
+                # Convert email_ids to integers if necessary
+                email_ids = [int(email_id) for email_id in email_ids]
 
-                # Mark the email for deletion
-                response = mail.add_flags([email_id], ['\\Deleted'])
+                # Mark the emails for deletion
+                response = mail.add_flags(email_ids, ['\\Deleted'])
                 if response is None:
-                    self.logger.warning(f"Failed to mark email with ID {email_id} as deleted.")
-                    raise EmailDeletionError(f"Failed to mark email with ID {email_id} as deleted.")
+                    self.logger.warning(f"Failed to mark emails with IDs {email_ids} as deleted.")
+                    raise EmailDeletionError(
+                        f"Failed to mark emails with IDs {email_ids} as deleted.")
 
-                # Permanently delete the email by expunging
+                # Permanently delete the emails by expunging
                 mail.expunge()  # This permanently removes emails marked with \\Deleted
-                self.logger.info(f"Successfully deleted email with ID {email_id}")
+                self.logger.info(f"Successfully deleted emails with IDs {email_ids}")
 
         except Exception as e:
-            self.logger.error(f"Failed to delete email with ID {email_id}: {e}", exc_info=True)
-            raise EmailDeletionError(f"Failed to delete email with ID {email_id}: {e}")
+            self.logger.error(f"Failed to delete emails with IDs {email_ids}: {e}", exc_info=True)
+            raise EmailDeletionError(f"Failed to delete emails with IDs {email_ids}: {e}")
+
 

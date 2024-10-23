@@ -14,10 +14,10 @@ class EmailExecutor(ExecutorInterface):
             "description": (
                 "Performs various email operations like sending, listing emails, fetching, or deleting specific emails. "
                 f"When sending an email, it must include the signature with some nice greetings and my name '{self.username}' at the end of the email body. "
-                "Always do a new list function call and dont use results from before! For the 'list' operation, at least one filter (e.g., count, from_filter, subject_filter, unread_only, or a date range) must be provided. "
+                "Always do a new list function call and don't use results from before! For the 'list' operation, at least one filter (e.g., count, from_filter, subject_filter, unread_only, or a date range) must be provided. "
                 "Before sending the email, always ask the user for confirmation explicitly and ensure they respond with 'yes', 'confirm', or a similar affirmative reply. "
                 "If the user does not explicitly confirm, do not send the email. Always clarify the intent to send and wait for explicit confirmation. "
-                "Never assume confirmation unless the user clearly responds affirmatively."
+                "Never assume confirmation unless the user clearly responds affirmatively. For the 'delete' operation, you can provide either a single email ID or a list of email IDs to delete."
             ),
             "parameters": {
                 "type": "object",
@@ -43,8 +43,14 @@ class EmailExecutor(ExecutorInterface):
                         )
                     },
                     "email_id": {
-                        "type": "string",
-                        "description": "The ID of the email to retrieve or delete (required for 'get' and 'delete' operations)"
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": (
+                            "The ID or a list of IDs of the email(s) to retrieve or delete (required for 'get' and 'delete' operations). "
+                            "If providing a list, all listed emails will be processed."
+                        )
                     },
                     "count": {
                         "type": "integer",
@@ -85,24 +91,12 @@ class EmailExecutor(ExecutorInterface):
             return self.email_service.send(to, subject, body)
 
         elif operation == "list":
-
-            # Retrieve all optional filters for the list operation
-
             count = arguments.get("count")
-
             from_filter = arguments.get("from_filter")
-
             subject_filter = arguments.get("subject_filter")
-
             unread_only = arguments.get("unread_only", False)
-
-            # Handle date_from and date_to conversion from string to datetime object
-
             date_from = arguments.get("date_from")
-
             date_to = arguments.get("date_to")
-
-            # Convert date_from and date_to from strings to datetime objects if provided
 
             if date_from:
                 date_from = datetime.strptime(date_from, '%Y-%m-%d')
@@ -110,38 +104,24 @@ class EmailExecutor(ExecutorInterface):
             if date_to:
                 date_to = datetime.strptime(date_to, '%Y-%m-%d')
 
-            # If date_from or date_to is provided, ignore 'count'
-
             if date_from or date_to:
                 count = None  # Ignore count if date range is used
 
-            # Call the email service list method with the provided filters
-
             emails = self.email_service.list(
-
                 count=count,
-
                 from_filter=from_filter,
-
                 subject_filter=subject_filter,
-
                 unread_only=unread_only,
-
                 date_from=date_from,
-
                 date_to=date_to
-
             )
 
             if not emails:
                 return "No emails found."
 
             return "\n".join([
-
                 f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
-
                 for email in emails
-
             ])
 
         elif operation == "get":
@@ -152,14 +132,19 @@ class EmailExecutor(ExecutorInterface):
             return f"No email found with ID {email_id}."
 
         elif operation == "delete":
-            email_id = arguments.get("email_id")
-            if not email_id:
-                return "No email ID provided for deletion."
+            email_ids = arguments.get("email_id")
+            if not email_ids:
+                return "No email ID(s) provided for deletion."
+
+            # Ensure email_ids is a list to handle both single and multiple deletions
+            if isinstance(email_ids, str):
+                email_ids = [email_ids]
+
             try:
-                self.email_service.delete(email_id)
-                return f"Email with ID {email_id} successfully deleted."
+                self.email_service.delete(email_ids)
+                return f"Emails with IDs {email_ids} successfully deleted."
             except Exception as e:
-                return f"An unexpected error occurred while deleting email with ID {email_id}: {str(e)}"
+                return f"An unexpected error occurred while deleting emails with IDs {email_ids}: {str(e)}"
 
         else:
             return f"Invalid operation: {operation}"
