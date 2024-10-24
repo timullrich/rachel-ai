@@ -1,7 +1,7 @@
 # Standard library imports
-import sys
-import logging
 import json
+import logging
+import sys
 from typing import Any, Dict, List, Optional
 
 # Third-party imports
@@ -42,17 +42,18 @@ class ChatService:
     """
 
     def __init__(
-            self,
-            openai_connector: OpenAiConnector,
-            user_language="en",
-            executors: Optional[List[ExecutorInterface]] = None
+        self,
+        openai_connector: OpenAiConnector,
+        user_language="en",
+        executors: Optional[List[ExecutorInterface]] = None,
     ):
         self.openai_connector: OpenAiConnector = openai_connector
         self.logger = logging.getLogger(self.__class__.__name__)
         self.user_language = user_language
         self.executors: List[ExecutorInterface] = executors
-        self.conversation_history: List[Dict[str, str]] = \
-            [{"role": "system", "content": "You are a helpful assistant."}]
+        self.conversation_history: List[Dict[str, str]] = [
+            {"role": "system", "content": "You are a helpful assistant."}
+        ]
 
     def format_and_print_content(self, content: str) -> None:
         """Formats content for console output."""
@@ -61,9 +62,13 @@ class ChatService:
         sys.stdout.flush()
 
         # Logging for debugging
-        self.logger.debug(f"Printed formatted content: {content[:50]}...")  # Truncate long content
+        self.logger.debug(
+            f"Printed formatted content: {content[:50]}..."
+        )  # Truncate long content
 
-    def ask_chat_gpt(self, user_input: str, conversation_history: List[Dict[str, str]]) -> Any:
+    def ask_chat_gpt(
+        self, user_input: str, conversation_history: List[Dict[str, str]]
+    ) -> Any:
         """
         Sends user input to the OpenAI ChatGPT model and processes the streaming response.
 
@@ -84,8 +89,10 @@ class ChatService:
             model="gpt-4o-mini",
             messages=conversation_history,
             stream=True,
-            functions=[executor.get_executor_definition() for executor in self.executors],
-            function_call="auto"
+            functions=[
+                executor.get_executor_definition() for executor in self.executors
+            ],
+            function_call="auto",
         )
 
         # Split the stream for inspection
@@ -100,16 +107,21 @@ class ChatService:
         choice = first_chunk.choices[0].delta
 
         # Check if it's a function call
-        if hasattr(choice, 'function_call') and choice.function_call is not None:
+        if hasattr(choice, "function_call") and choice.function_call is not None:
             self.logger.info(f"Function call detected: {choice.function_call.name}")
 
             for chunk in splitter.get():
                 choice = chunk.choices[0].delta
 
                 # Get the function call name from the first chunk
-                if hasattr(choice, 'function_call') and choice.function_call is not None:
+                if (
+                    hasattr(choice, "function_call")
+                    and choice.function_call is not None
+                ):
                     if function_call_name is None:
-                        function_call_name = choice.function_call.name  # Store the function name
+                        function_call_name = (
+                            choice.function_call.name
+                        )  # Store the function name
                     if choice.function_call.arguments:
                         # Collect arguments
                         function_call_arguments += choice.function_call.arguments
@@ -118,40 +130,53 @@ class ChatService:
             if function_call_name:
                 self.logger.info(
                     f"Executing function: {function_call_name} with "
-                    f"arguments: {function_call_arguments}")
+                    f"arguments: {function_call_arguments}"
+                )
                 arguments = json.loads(function_call_arguments)
                 result = self.handle_function_call(function_call_name, arguments)
 
                 # Fetch the appropriate executor
-                executor = next((e for e in self.executors if
-                                 e.get_executor_definition()["name"] == function_call_name), None)
+                executor = next(
+                    (
+                        e
+                        for e in self.executors
+                        if e.get_executor_definition()["name"] == function_call_name
+                    ),
+                    None,
+                )
                 if not executor:
-                    self.logger.error(f"No executor found for function: {function_call_name}")
-                    raise Exception(f"No Executor found for function: {function_call_name}")
+                    self.logger.error(
+                        f"No executor found for function: {function_call_name}"
+                    )
+                    raise Exception(
+                        f"No Executor found for function: {function_call_name}"
+                    )
 
                 # Create the interpretation request for GPT
-                conversation_history.append({
-                    "role": "system",
-                    "content": result
-                })
+                conversation_history.append({"role": "system", "content": result})
 
                 # Maybe too much....
-                conversation_history.append({
-                    "role": "user",
-                    "content": executor.get_result_interpreter_instructions(
-                        user_language=self.user_language)
-                })
+                conversation_history.append(
+                    {
+                        "role": "user",
+                        "content": executor.get_result_interpreter_instructions(
+                            user_language=self.user_language
+                        ),
+                    }
+                )
 
                 interpretation_request = {
                     "model": "gpt-4o-mini",
-                    "messages": conversation_history
+                    "messages": conversation_history,
                 }
 
                 # Return the interpreted executor result stream
-                interpreted_stream = self.openai_connector.client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=interpretation_request["messages"],
-                    stream=True
+                interpreted_stream = (
+                    self.openai_connector.client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=interpretation_request["messages"],
+                        stream=True,
+                    )
                 )
                 return interpreted_stream
 
@@ -160,7 +185,9 @@ class ChatService:
             self.logger.info("Returning normal content stream.")
             return splitter.get()
 
-    def handle_function_call(self, function_name: str, arguments: Dict[str, Any]) -> str:
+    def handle_function_call(
+        self, function_name: str, arguments: Dict[str, Any]
+    ) -> str:
         """
         Executes the corresponding function based on the function name provided by GPT.
 
@@ -171,10 +198,14 @@ class ChatService:
         Returns:
             str: The result of the function execution or an error message if no executor is found.
         """
-        print(Fore.MAGENTA + Style.BRIGHT + f"Function call: {function_name} with "
-                                            f"arguments: {arguments}" + Style.RESET_ALL)
+        print(
+            Fore.MAGENTA + Style.BRIGHT + f"Function call: {function_name} with "
+            f"arguments: {arguments}" + Style.RESET_ALL
+        )
 
-        self.logger.info(f"Handling function call: {function_name} with arguments: {arguments}")
+        self.logger.info(
+            f"Handling function call: {function_name} with arguments: {arguments}"
+        )
 
         for executor in self.executors:
             if executor.get_executor_definition()["name"] == function_name:
@@ -206,6 +237,8 @@ class ChatService:
                 text_buffer += content
 
         print()  # adds linebreak at the end
-        self.logger.debug(f"Completed stream output. Total characters: {len(assistant_reply)}")
+        self.logger.debug(
+            f"Completed stream output. Total characters: {len(assistant_reply)}"
+        )
 
         return assistant_reply

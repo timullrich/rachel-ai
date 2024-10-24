@@ -25,4 +25,6 @@ class OpenWeatherMapConnector:
         try:
             self.client = pyowm.OWM(self.api_key)
         except Exception as e:
-            raise ConnectionError(f"Failed to initialize OpenWeatherMap connection: {e}")
+            raise ConnectionError(
+                f"Failed to initialize OpenWeatherMap connection: {e}"
+            )

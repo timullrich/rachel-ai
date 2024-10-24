@@ -1,23 +1,24 @@
 # Standard library imports
 import logging
 
-# Email handling imports
-from email.mime.text import MIMEText
-
 # Typing imports
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+
+# Email handling imports
+from email.mime.text import MIMEText
+from typing import Any, Dict, List, Optional
 
 # Local application imports
-from src.connectors import SmtpConnector, ImapConnector
-from src.exceptions import EmailNotFound, EmailDeletionError, EmailListingError
+from src.connectors import ImapConnector, SmtpConnector
+from src.exceptions import EmailDeletionError, EmailListingError, EmailNotFound
 
 
 class EmailService:
     def __init__(
-            self, smtp_connector: SmtpConnector,
-            imap_connector: ImapConnector,
-            user_language: str = "en"
+        self,
+        smtp_connector: SmtpConnector,
+        imap_connector: ImapConnector,
+        user_language: str = "en",
     ):
         self.smtp_connector = smtp_connector
         self.imap_connector = imap_connector
@@ -84,7 +85,9 @@ class EmailService:
                 # Convert the email_id to integer if necessary
                 email_id = int(email_id)
 
-                message_data = mail.fetch([email_id], ['RFC822'])  # Fetch the email using the ID
+                message_data = mail.fetch(
+                    [email_id], ["RFC822"]
+                )  # Fetch the email using the ID
 
                 # Check if the email was fetched successfully
                 if email_id not in message_data:
@@ -92,22 +95,24 @@ class EmailService:
                     raise EmailNotFound(f"Email with ID {email_id} not found.")
 
                 # Get the email content
-                email_message = message_data[email_id][b'RFC822'].decode("utf-8")
+                email_message = message_data[email_id][b"RFC822"].decode("utf-8")
                 self.logger.info(f"Successfully fetched email with ID {email_id}")
                 return email_message
 
         except Exception as e:
-            self.logger.error(f"Error fetching email with ID {email_id}: {e}", exc_info=True)
+            self.logger.error(
+                f"Error fetching email with ID {email_id}: {e}", exc_info=True
+            )
             raise
 
     def list(
-            self,
-            count: Optional[int] = None,
-            from_filter: Optional[str] = None,
-            subject_filter: Optional[str] = None,
-            unread_only: bool = False,
-            date_from: Optional[datetime] = None,
-            date_to: Optional[datetime] = None
+        self,
+        count: Optional[int] = None,
+        from_filter: Optional[str] = None,
+        subject_filter: Optional[str] = None,
+        unread_only: bool = False,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
     ) -> List[Dict[str, str]]:
         """
         Fetches a list of emails with optional filters applied.
@@ -124,29 +129,30 @@ class EmailService:
             List[Dict[str, str]]: A list of dictionaries containing email details (subject, from, date).
         """
         self.logger.info(
-            f"Fetching emails with filters: count={count}, from_filter={from_filter}, subject_filter={subject_filter}, unread_only={unread_only}, date_from={date_from}, date_to={date_to}")
+            f"Fetching emails with filters: count={count}, from_filter={from_filter}, subject_filter={subject_filter}, unread_only={unread_only}, date_from={date_from}, date_to={date_to}"
+        )
 
         try:
             with self.imap_connector.connect_and_login() as mail:
                 mail.select_folder("INBOX")
 
                 # Build the search criteria
-                search_criteria = ['ALL']  # Default to all emails
+                search_criteria = ["ALL"]  # Default to all emails
 
                 if unread_only:
-                    search_criteria.append('UNSEEN')
+                    search_criteria.append("UNSEEN")
 
                 if from_filter:
-                    search_criteria.extend(['FROM', from_filter])
+                    search_criteria.extend(["FROM", from_filter])
 
                 if subject_filter:
-                    search_criteria.extend(['SUBJECT', subject_filter])
+                    search_criteria.extend(["SUBJECT", subject_filter])
 
                 if date_from:
-                    search_criteria.extend(['SINCE', date_from.strftime('%d-%b-%Y')])
+                    search_criteria.extend(["SINCE", date_from.strftime("%d-%b-%Y")])
 
                 if date_to:
-                    search_criteria.extend(['BEFORE', date_to.strftime('%d-%b-%Y')])
+                    search_criteria.extend(["BEFORE", date_to.strftime("%d-%b-%Y")])
 
                 # Search for messages based on the search criteria
                 messages = mail.search(search_criteria)
@@ -164,18 +170,20 @@ class EmailService:
                 # Fetch the email details
                 emails = []
                 for email_id in reversed(email_ids):
-                    message_data = mail.fetch([email_id], ['ENVELOPE'])
-                    envelope = message_data[email_id][b'ENVELOPE']
-                    email_subject = envelope.subject.decode('utf-8')
+                    message_data = mail.fetch([email_id], ["ENVELOPE"])
+                    envelope = message_data[email_id][b"ENVELOPE"]
+                    email_subject = envelope.subject.decode("utf-8")
                     email_from = envelope.from_[0]
-                    email_date = envelope.date.strftime('%Y-%m-%d %H:%M:%S')
+                    email_date = envelope.date.strftime("%Y-%m-%d %H:%M:%S")
 
-                    emails.append({
-                        "email_id": str(email_id),
-                        "subject": email_subject,
-                        "from": str(email_from),
-                        "date": email_date
-                    })
+                    emails.append(
+                        {
+                            "email_id": str(email_id),
+                            "subject": email_subject,
+                            "from": str(email_from),
+                            "date": email_date,
+                        }
+                    )
 
                 self.logger.info(f"Successfully fetched {len(emails)} emails.")
                 return emails
@@ -213,18 +221,23 @@ class EmailService:
                 email_ids = [int(email_id) for email_id in email_ids]
 
                 # Mark the emails for deletion
-                response = mail.add_flags(email_ids, ['\\Deleted'])
+                response = mail.add_flags(email_ids, ["\\Deleted"])
                 if response is None:
-                    self.logger.warning(f"Failed to mark emails with IDs {email_ids} as deleted.")
+                    self.logger.warning(
+                        f"Failed to mark emails with IDs {email_ids} as deleted."
+                    )
                     raise EmailDeletionError(
-                        f"Failed to mark emails with IDs {email_ids} as deleted.")
+                        f"Failed to mark emails with IDs {email_ids} as deleted."
+                    )
 
                 # Permanently delete the emails by expunging
                 mail.expunge()  # This permanently removes emails marked with \\Deleted
                 self.logger.info(f"Successfully deleted emails with IDs {email_ids}")
 
         except Exception as e:
-            self.logger.error(f"Failed to delete emails with IDs {email_ids}: {e}", exc_info=True)
-            raise EmailDeletionError(f"Failed to delete emails with IDs {email_ids}: {e}")
-
-
+            self.logger.error(
+                f"Failed to delete emails with IDs {email_ids}: {e}", exc_info=True
+            )
+            raise EmailDeletionError(
+                f"Failed to delete emails with IDs {email_ids}: {e}"
+            )

@@ -1,6 +1,7 @@
 import logging
-from typing import Dict, List
 from datetime import datetime, timedelta
+from typing import Dict, List
+
 from src.connectors import OpenWeatherMapConnector
 
 
@@ -12,7 +13,9 @@ class WeatherService:
     and weather forecasts for a given location (e.g., city name).
     """
 
-    def __init__(self, weather_connector: OpenWeatherMapConnector, user_language: str = "en"):
+    def __init__(
+        self, weather_connector: OpenWeatherMapConnector, user_language: str = "en"
+    ):
         """
         Initializes the WeatherService with the necessary OpenWeatherMapConnector.
 
@@ -52,17 +55,21 @@ class WeatherService:
 
             # Extrahiere die Wetterdetails
             weather_details = {
-                'description': weather.detailed_status,
-                'temperature': weather.temperature('celsius')['temp'],
-                'humidity': weather.humidity,
-                'wind_speed': weather.wind()['speed']
+                "description": weather.detailed_status,
+                "temperature": weather.temperature("celsius")["temp"],
+                "humidity": weather.humidity,
+                "wind_speed": weather.wind()["speed"],
             }
 
-            self.logger.info(f"Successfully retrieved weather for {city_name}: {weather_details}")
+            self.logger.info(
+                f"Successfully retrieved weather for {city_name}: {weather_details}"
+            )
             return weather_details
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve weather data for {city_name}: {e}", exc_info=True)
+            self.logger.error(
+                f"Failed to retrieve weather data for {city_name}: {e}", exc_info=True
+            )
             raise ValueError(f"Could not fetch weather data for {city_name}: {e}")
 
     def get_forecast(self, city_name: str, days: int = 1) -> List[Dict[str, str]]:
@@ -82,34 +89,41 @@ class WeatherService:
                                   - wind_speed: Wind speed in meters per second.
                                   - humidity: Humidity percentage.
         """
-        self.logger.info(f"Fetching weather forecast for {city_name} for {days} day(s).")
+        self.logger.info(
+            f"Fetching weather forecast for {city_name} for {days} day(s)."
+        )
 
         try:
             self.weather_connector.connect()
             mgr = self.weather_connector.client.weather_manager()
 
             # Abrufen der 5-Tage-Vorhersage in 3-Stunden-Intervallen
-            forecast = mgr.forecast_at_place(city_name, '3h')
+            forecast = mgr.forecast_at_place(city_name, "3h")
             forecast_list = forecast.forecast.weathers
 
             # Filter forecast data to match the number of requested days (up to 5 days)
             filtered_forecast = [
                 {
-                    'time': weather.reference_time('iso'),
-                    'status': weather.status,
-                    'detailed_status': weather.detailed_status,
-                    'temperature': weather.temperature('celsius')['temp'],
-                    'wind_speed': weather.wind()['speed'],
-                    'humidity': weather.humidity
+                    "time": weather.reference_time("iso"),
+                    "status": weather.status,
+                    "detailed_status": weather.detailed_status,
+                    "temperature": weather.temperature("celsius")["temp"],
+                    "wind_speed": weather.wind()["speed"],
+                    "humidity": weather.humidity,
                 }
-                for weather in forecast_list if self._is_within_days(weather.reference_time('iso'), days)
+                for weather in forecast_list
+                if self._is_within_days(weather.reference_time("iso"), days)
             ]
 
-            self.logger.info(f"Successfully retrieved forecast for {city_name} for {days} day(s).")
+            self.logger.info(
+                f"Successfully retrieved forecast for {city_name} for {days} day(s)."
+            )
             return filtered_forecast
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve forecast data for {city_name}: {e}", exc_info=True)
+            self.logger.error(
+                f"Failed to retrieve forecast data for {city_name}: {e}", exc_info=True
+            )
             raise ValueError(f"Could not fetch forecast data for {city_name}: {e}")
 
     def _is_within_days(self, forecast_time: str, days: int) -> bool:
@@ -124,10 +138,12 @@ class WeatherService:
             bool: True if the forecast falls within the requested range of days, False otherwise.
         """
         # Parse the forecast time as an offset-aware datetime and remove the timezone information
-        forecast_datetime = datetime.fromisoformat(forecast_time.replace("Z", "+00:00")).replace(
-            tzinfo=None)
-        current_datetime = datetime.utcnow()  # This is an offset-naive datetime (no timezone)
+        forecast_datetime = datetime.fromisoformat(
+            forecast_time.replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+        current_datetime = (
+            datetime.utcnow()
+        )  # This is an offset-naive datetime (no timezone)
 
         # Check if the forecast time is within the specified number of days
         return forecast_datetime <= current_datetime + timedelta(days=days)
-

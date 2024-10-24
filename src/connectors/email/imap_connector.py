@@ -1,5 +1,6 @@
 from imapclient import IMAPClient
 
+
 class ImapConnector:
     """
     A connector class for handling IMAP (email receiving) configuration.
@@ -26,4 +27,6 @@ class ImapConnector:
             mail.login(self.imap_user, self.imap_password)
             return mail
         except Exception as e:
-            raise ConnectionError(f"Failed to connect or authenticate with IMAP server: {e}")
+            raise ConnectionError(
+                f"Failed to connect or authenticate with IMAP server: {e}"
+            )

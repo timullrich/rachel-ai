@@ -1,5 +1,6 @@
 import smtplib
 
+
 class SmtpConnector:
     """
     A connector class for handling SMTP (email sending) configuration.
@@ -25,4 +26,6 @@ class SmtpConnector:
 
             return server
         except Exception as e:
-            raise ConnectionError(f"Failed to connect or authenticate with SMTP server: {e}")
+            raise ConnectionError(
+                f"Failed to connect or authenticate with SMTP server: {e}"
+            )
