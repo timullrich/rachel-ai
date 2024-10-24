@@ -67,4 +67,6 @@ class CryptoDataExecutor(ExecutorInterface):
         return f"OHLC data for {coin_id} (last {days} days in {vs_currency}):\n{formatted_data}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return "Summarize the OHLC data and check if the user needs further information or action."
+        return "Summarize the OHLC data as short as possible and check if the user needs " \
+               "further information or action." \
+               f"Please always answer in Language '{user_language}'"

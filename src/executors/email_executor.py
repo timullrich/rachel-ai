@@ -160,4 +160,6 @@ class EmailExecutor(ExecutorInterface):
             return f"Invalid operation: {operation}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return f"Please summarize the result of the requested email operation and ask if the user needs further actions."
+        return f"Please summarize the result of the requested email operation as short as " \
+               f"possible and ask if the user needs further actions." \
+               f"Please always answer in Language '{user_language}'"

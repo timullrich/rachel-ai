@@ -105,4 +105,6 @@ class WeatherExecutor(ExecutorInterface):
         Returns:
             str: Instructions for interpreting the result.
         """
-        return "Please summarize the weather or forecast details and ask if the user needs any further information."
+        return "Please summarize the weather or forecast details as short as possible and ask if " \
+               "the user needs any further information." \
+               f"Please always answer in Language '{user_language}'"

@@ -50,4 +50,6 @@ class ContactExecutor(ExecutorInterface):
         ])
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return "Please summarize the contacts retrieved and ask if the user needs any further action."
+        return "Please summarize the contacts retrieved as short as possible and ask if the user " \
+               "needs any further action." \
+               f"Please always answer in Language '{user_language}'"

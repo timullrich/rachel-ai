@@ -131,16 +131,16 @@ class ChatService:
 
                 # Create the interpretation request for GPT
                 conversation_history.append({
-                    "role": "user",
+                    "role": "system",
                     "content": result
                 })
 
                 # Maybe too much....
-                # conversation_history.append({
-                #     "role": "system",
-                #     "content": executor.get_result_interpreter_instructions(
-                #         user_language=self.user_language)
-                # })
+                conversation_history.append({
+                    "role": "user",
+                    "content": executor.get_result_interpreter_instructions(
+                        user_language=self.user_language)
+                })
 
                 interpretation_request = {
                     "model": "gpt-4o-mini",

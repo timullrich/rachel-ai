@@ -36,5 +36,5 @@ class CommandExecutor(ExecutorInterface):
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         return f"Please explain the output of the previous executed command to the user as short" \
-               " as possible and point out the relevant data. Also ask for further instructions! " \
+               " as possible. Also ask for further instructions! " \
                f"Please always answer in Language '{user_language}'"
