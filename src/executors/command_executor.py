@@ -1,4 +1,5 @@
 import subprocess
+import shlex
 from typing import Dict, Any
 
 from ._executor_interface import ExecutorInterface
@@ -25,9 +26,17 @@ class CommandExecutor(ExecutorInterface):
         command = arguments.get("command")
         if command:
             try:
+                # Verwende shlex.split, um den Befehl in korrekt gesplittete Teile zu zerlegen
+                split_command = shlex.split(command)
+
+                # Debug: Optional - Den gesplitteten Befehl anzeigen, um ihn zu überprüfen
+                print(f"Split command: {split_command}")
+
+                # Führe den Befehl aus
                 result = subprocess.run(
-                    command, shell=True, capture_output=True, text=True
+                    split_command, shell=False, capture_output=True, text=True
                 )
+
                 # Kombiniere stdout und stderr, um immer alle Infos zu haben
                 output = result.stdout.strip()
                 error = result.stderr.strip()
