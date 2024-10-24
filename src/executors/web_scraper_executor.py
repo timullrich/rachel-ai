@@ -15,19 +15,19 @@ class WebScraperExecutor(ExecutorInterface):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The web scraping operation to perform: 'get_titles' or 'get_links'."
+                        "description": "The web scraping operation to perform: 'get_titles' or 'get_links'.",
                     },
                     "url": {
                         "type": "string",
-                        "description": "The URL of the web page to scrape."
+                        "description": "The URL of the web page to scrape.",
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "The maximum number of results to return (default: 5)."
-                    }
+                        "description": "The maximum number of results to return (default: 5).",
+                    },
                 },
-                "required": ["operation", "url"]
-            }
+                "required": ["operation", "url"],
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -47,7 +47,8 @@ class WebScraperExecutor(ExecutorInterface):
             return f"Invalid operation: {operation}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return f"Please summarize the result of the requested scraper operation and ask if the " \
-               f"user needs further actions." \
-               f"Please always answer in Language '{user_language}'"
-
+        return (
+            f"Please summarize the result of the requested scraper operation and ask if the "
+            f"user needs further actions."
+            f"Please always answer in Language '{user_language}'"
+        )

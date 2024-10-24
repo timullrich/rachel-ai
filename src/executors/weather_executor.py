@@ -30,20 +30,20 @@ class WeatherExecutor(ExecutorInterface):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The weather operation to perform: 'get_weather', 'get_forecast'"
+                        "description": "The weather operation to perform: 'get_weather', 'get_forecast'",
                     },
                     "city_name": {
                         "type": "string",
-                        "description": "The name of the city to retrieve the weather data for."
+                        "description": "The name of the city to retrieve the weather data for.",
                     },
                     "days_ahead": {
                         "type": "integer",
-                        "description": "Number of days ahead for the forecast (optional, default is 1)."
-                    }
+                        "description": "Number of days ahead for the forecast (optional, default is 1).",
+                    },
                 },
                 "required": ["operation", "city_name"],
-                "additionalProperties": False
-            }
+                "additionalProperties": False,
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -76,8 +76,12 @@ class WeatherExecutor(ExecutorInterface):
         elif operation == "get_forecast":
             try:
                 # Abrufen der Vorhersage über den WeatherService
-                forecast_details = self.weather_service.get_forecast(city_name, days_ahead)
-                forecast_str = f"Forecast for {city_name} for the next {days_ahead} day(s):\n"
+                forecast_details = self.weather_service.get_forecast(
+                    city_name, days_ahead
+                )
+                forecast_str = (
+                    f"Forecast for {city_name} for the next {days_ahead} day(s):\n"
+                )
 
                 for entry in forecast_details:
                     forecast_str += (
@@ -105,6 +109,8 @@ class WeatherExecutor(ExecutorInterface):
         Returns:
             str: Instructions for interpreting the result.
         """
-        return "Please summarize the weather or forecast details as short as possible and ask if " \
-               "the user needs any further information." \
-               f"Please always answer in Language '{user_language}'"
+        return (
+            "Please summarize the weather or forecast details as short as possible and ask if "
+            "the user needs any further information."
+            f"Please always answer in Language '{user_language}'"
+        )

@@ -16,10 +16,23 @@ from src.connectors import OpenWeatherMapConnector
 from src.connectors import CoinGeckoConnector
 
 from src.entities import AudioRecordResult
-from src.services import AudioService, ChatService, EmailService, ContactService, WeatherService, \
-    WebScraperService, CryptoDataService
-from src.executors import CommandExecutor, EmailExecutor, ContactExecutor, WeatherExecutor, \
-    WebScraperExecutor, CryptoDataExecutor
+from src.services import (
+    AudioService,
+    ChatService,
+    EmailService,
+    ContactService,
+    WeatherService,
+    WebScraperService,
+    CryptoDataService,
+)
+from src.executors import (
+    CommandExecutor,
+    EmailExecutor,
+    ContactExecutor,
+    WeatherExecutor,
+    WebScraperExecutor,
+    CryptoDataExecutor,
+)
 
 
 def setup_logging(log_level: str = "info") -> logging.Logger:
@@ -30,11 +43,11 @@ def setup_logging(log_level: str = "info") -> logging.Logger:
 
     logging.basicConfig(
         level=numeric_log_level,  # Dynamically set log level
-        format='%(asctime)s [%(levelname)s] %(message)s',
+        format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             logging.FileHandler("app.log"),  # Log to a file
-            logging.StreamHandler(sys.stdout)  # Log output to the console
-        ]
+            logging.StreamHandler(sys.stdout),  # Log output to the console
+        ],
     )
     logger = logging.getLogger(__name__)
     return logger
@@ -52,7 +65,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--silent",
         action="store_true",
-        help="Run in silent mode (text input/output only)"
+        help="Run in silent mode (text input/output only)",
     )
     args = parser.parse_args()
 
@@ -84,12 +97,12 @@ if __name__ == "__main__":
     smtp_connector: SmtpConnector = SmtpConnector(
         os.getenv("SMTP_SERVER"),
         smtp_user=os.getenv("SMTP_USER"),
-        smtp_password=os.getenv("SMTP_PASSWORD")
+        smtp_password=os.getenv("SMTP_PASSWORD"),
     )
     imap_connector: ImapConnector = ImapConnector(
         imap_server=os.getenv("IMAP_SERVER"),
         imap_user=os.getenv("IMAP_USER"),
-        imap_password=os.getenv("IMAP_PASSWORD")
+        imap_password=os.getenv("IMAP_PASSWORD"),
     )
 
     weather_connector: OpenWeatherMapConnector = OpenWeatherMapConnector(
@@ -106,9 +119,7 @@ if __name__ == "__main__":
     crypto_data_service = CryptoDataService(coin_gecko_connector)
 
     audio_service = AudioService(
-        open_ai_connector,
-        user_language=user_language,
-        sound_theme=sound_theme
+        open_ai_connector, user_language=user_language, sound_theme=sound_theme
     )
 
     # application variables
@@ -123,25 +134,27 @@ if __name__ == "__main__":
         ContactExecutor(contacts_service),
         WeatherExecutor(weather_service),
         WebScraperExecutor(web_scraper_service),
-        CryptoDataExecutor(crypto_data_service)
+        CryptoDataExecutor(crypto_data_service),
         # Other executors like EmailExecutor(), ReminderExecutor(), etc.
     ]
 
     # chat service needs to be initialized after the executors
     chat_service = ChatService(
-        open_ai_connector,
-        user_language=user_language,
-        executors=executors
+        open_ai_connector, user_language=user_language, executors=executors
     )
 
     while True:
         try:
             if args.silent:
                 # Silent mode: Use text input/output
-                user_input_text = input(Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL)
+                user_input_text = input(
+                    Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL
+                )
 
                 # Send user input to GPT and get response stream
-                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+                stream = chat_service.ask_chat_gpt(
+                    user_input_text, conversation_history
+                )
 
                 # Print text stream output
                 chat_service.print_stream_text(stream)
@@ -161,14 +174,21 @@ if __name__ == "__main__":
                     sys.exit()  # Exit the entire script
 
                 # Transcribe and print the AudioRecordResult using OpenAI's Whisper API
-                user_input_text: str = audio_service.transcribe_audio(user_input_audio,
-                                                                      user_language)
-                formatted_user_input_text: str = \
-                    Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
+                user_input_text: str = audio_service.transcribe_audio(
+                    user_input_audio, user_language
+                )
+                formatted_user_input_text: str = (
+                    Fore.YELLOW
+                    + Style.BRIGHT
+                    + f"You: {user_input_text}"
+                    + Style.RESET_ALL
+                )
                 print(formatted_user_input_text)
 
                 # Stream the transcribed input to GPT and handle the response
-                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+                stream = chat_service.ask_chat_gpt(
+                    user_input_text, conversation_history
+                )
 
                 # Create a StreamSplitter to share the stream
                 splitter = StreamSplitter(stream)
@@ -176,10 +196,12 @@ if __name__ == "__main__":
 
                 # Start the threads for text and audio playback
                 text_output_thread = threading.Thread(
-                    target=chat_service.print_stream_text, args=(splitter.get(),))
+                    target=chat_service.print_stream_text, args=(splitter.get(),)
+                )
 
                 audio_output_thread = threading.Thread(
-                    target=audio_service.play_stream_audio, args=(splitter.get(),))
+                    target=audio_service.play_stream_audio, args=(splitter.get(),)
+                )
 
                 text_output_thread.start()
                 audio_output_thread.start()

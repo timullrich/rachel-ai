@@ -24,15 +24,15 @@ class EmailExecutor(ExecutorInterface):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The email operation to perform: 'send', 'list', 'get', 'delete'"
+                        "description": "The email operation to perform: 'send', 'list', 'get', 'delete'",
                     },
                     "to": {
                         "type": "string",
-                        "description": "Recipient email address (only required for 'send' operation). Always ask before you really send the Email!"
+                        "description": "Recipient email address (only required for 'send' operation). Always ask before you really send the Email!",
                     },
                     "subject": {
                         "type": "string",
-                        "description": "Email subject (only required for 'send' operation)"
+                        "description": "Email subject (only required for 'send' operation)",
                     },
                     "body": {
                         "type": "string",
@@ -40,45 +40,43 @@ class EmailExecutor(ExecutorInterface):
                             "Email body text (only required for 'send' operation). Ensure to include the message body followed "
                             "with some nice greetings and my name '{self.username}' as the signature. "
                             "Before sending, always ask for confirmation, and only send if the user responds affirmatively."
-                        )
+                        ),
                     },
                     "email_id": {
                         "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
+                        "items": {"type": "string"},
                         "description": (
                             "The ID or a list of IDs of the email(s) to retrieve or delete (required for 'get' and 'delete' operations). "
                             "If providing a list, all listed emails will be processed."
-                        )
+                        ),
                     },
                     "count": {
                         "type": "integer",
-                        "description": "Number of emails to search through (only used for 'list' operation). Ignored if date range is provided."
+                        "description": "Number of emails to search through (only used for 'list' operation). Ignored if date range is provided.",
                     },
                     "from_filter": {
                         "type": "string",
-                        "description": "Filter for sender email address (only used for 'list' operation)"
+                        "description": "Filter for sender email address (only used for 'list' operation)",
                     },
                     "subject_filter": {
                         "type": "string",
-                        "description": "Filter for email subject (only used for 'list' operation)"
+                        "description": "Filter for email subject (only used for 'list' operation)",
                     },
                     "unread_only": {
                         "type": "boolean",
-                        "description": "If true, only return unread emails (only used for 'list' operation)"
+                        "description": "If true, only return unread emails (only used for 'list' operation)",
                     },
                     "date_from": {
                         "type": "string",
-                        "description": "Start date for filtering emails (only used for 'list' operation)"
+                        "description": "Start date for filtering emails (only used for 'list' operation)",
                     },
                     "date_to": {
                         "type": "string",
-                        "description": "End date for filtering emails (only used for 'list' operation)"
+                        "description": "End date for filtering emails (only used for 'list' operation)",
                     },
                 },
-                "required": ["operation"]
-            }
+                "required": ["operation"],
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -99,10 +97,10 @@ class EmailExecutor(ExecutorInterface):
             date_to = arguments.get("date_to")
 
             if date_from:
-                date_from = datetime.strptime(date_from, '%Y-%m-%d')
+                date_from = datetime.strptime(date_from, "%Y-%m-%d")
 
             if date_to:
-                date_to = datetime.strptime(date_to, '%Y-%m-%d')
+                date_to = datetime.strptime(date_to, "%Y-%m-%d")
 
             if date_from or date_to:
                 count = None  # Ignore count if date range is used
@@ -113,17 +111,18 @@ class EmailExecutor(ExecutorInterface):
                 subject_filter=subject_filter,
                 unread_only=unread_only,
                 date_from=date_from,
-                date_to=date_to
+                date_to=date_to,
             )
 
             if not emails:
                 return "No emails found."
 
-            return "\n".join([
-                f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
-                for email in emails
-            ])
-
+            return "\n".join(
+                [
+                    f"ID: {email['email_id']}, From: {email['from']}, Subject: {email['subject']}, Date: {email['date']}"
+                    for email in emails
+                ]
+            )
 
         elif operation == "get":
 
@@ -160,6 +159,8 @@ class EmailExecutor(ExecutorInterface):
             return f"Invalid operation: {operation}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return f"Please summarize the result of the requested email operation as short as " \
-               f"possible and ask if the user needs further actions." \
-               f"Please always answer in Language '{user_language}'"
+        return (
+            f"Please summarize the result of the requested email operation as short as "
+            f"possible and ask if the user needs further actions."
+            f"Please always answer in Language '{user_language}'"
+        )

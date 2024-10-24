@@ -14,27 +14,36 @@ class CommandExecutor(ExecutorInterface):
                 "properties": {
                     "command": {
                         "type": "string",
-                        "description": "The shell command to be executed"
+                        "description": "The shell command to be executed",
                     }
                 },
-                "required": ["command"]
-            }
+                "required": ["command"],
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
         command = arguments.get("command")
         if command:
             try:
-                result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                result = subprocess.run(
+                    command, shell=True, capture_output=True, text=True
+                )
+                # Kombiniere stdout und stderr, um immer alle Infos zu haben
+                output = result.stdout.strip()
+                error = result.stderr.strip()
+
                 if result.returncode == 0:
-                    return result.stdout.strip()
+                    return output if output else "Command executed successfully."
                 else:
-                    return f"Command failed: {result.stderr.strip()}"
+                    # Gebe sowohl stdout als auch stderr zurück, wenn ein Fehler auftritt
+                    return f"Command returned non-zero exit code {result.returncode}.\nOutput: {output}\nError: {error}"
             except Exception as e:
                 return f"Error executing command: {e}"
         return "No command provided."
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return f"Please explain the output of the previous executed command to the user as short" \
-               " as possible. Also ask for further instructions! " \
-               f"Please always answer in Language '{user_language}'"
+        return (
+            f"Please explain the output of the previous executed command to the user as short"
+            " as possible. Also ask for further instructions! "
+            f"Please always answer in Language '{user_language}'"
+        )

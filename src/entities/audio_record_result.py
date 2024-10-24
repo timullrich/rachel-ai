@@ -17,8 +17,13 @@ class AudioRecordResult:
         silence_timeout (bool): Indicates whether the recording was stopped due to a silence
             timeout, meaning that no speech was detected for a specified duration.
     """
-    def __init__(self, success: bool, data: Optional[np.ndarray] = None,
-                 silence_timeout: bool = False):
+
+    def __init__(
+        self,
+        success: bool,
+        data: Optional[np.ndarray] = None,
+        silence_timeout: bool = False,
+    ):
         self.success = success
         self.data = data
         self.silence_timeout = silence_timeout

@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from ._executor_interface import ExecutorInterface
 
+
 class CryptoDataExecutor(ExecutorInterface):
     """
     Executor class for fetching OHLC data for a specific cryptocurrency.
@@ -24,21 +25,21 @@ class CryptoDataExecutor(ExecutorInterface):
                 "properties": {
                     "coin_id": {
                         "type": "string",
-                        "description": "The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum')."
+                        "description": "The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').",
                     },
                     "vs_currency": {
                         "type": "string",
                         "description": "The reference currency (e.g., 'usd', 'eur').",
-                        "default": "usd"
+                        "default": "usd",
                     },
                     "days": {
                         "type": "integer",
                         "description": "The number of days to fetch OHLC data for (e.g., 1, 7, 30).",
-                        "default": 7
-                    }
+                        "default": 7,
+                    },
                 },
-                "required": ["coin_id"]
-            }
+                "required": ["coin_id"],
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -51,7 +52,9 @@ class CryptoDataExecutor(ExecutorInterface):
 
         try:
             # Abrufen der OHLC-Daten über den Service
-            ohlc_data = self.crypto_data_service.get_ohlc(coin_id=coin_id, vs_currency=vs_currency, days=days)
+            ohlc_data = self.crypto_data_service.get_ohlc(
+                coin_id=coin_id, vs_currency=vs_currency, days=days
+            )
         except Exception as e:
             return f"An error occurred while fetching data: {str(e)}"
 
@@ -59,14 +62,18 @@ class CryptoDataExecutor(ExecutorInterface):
             return f"No OHLC data found for {coin_id}."
 
         # Formatieren der OHLC-Daten für die Ausgabe
-        formatted_data = "\n".join([
-            f"Date: {ohlc[0]}, Open: {ohlc[1]}, High: {ohlc[2]}, Low: {ohlc[3]}, Close: {ohlc[4]}"
-            for ohlc in ohlc_data
-        ])
+        formatted_data = "\n".join(
+            [
+                f"Date: {ohlc[0]}, Open: {ohlc[1]}, High: {ohlc[2]}, Low: {ohlc[3]}, Close: {ohlc[4]}"
+                for ohlc in ohlc_data
+            ]
+        )
 
         return f"OHLC data for {coin_id} (last {days} days in {vs_currency}):\n{formatted_data}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return "Summarize the OHLC data as short as possible and check if the user needs " \
-               "further information or action." \
-               f"Please always answer in Language '{user_language}'"
+        return (
+            "Summarize the OHLC data as short as possible and check if the user needs "
+            "further information or action."
+            f"Please always answer in Language '{user_language}'"
+        )

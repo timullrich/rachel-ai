@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from ._executor_interface import ExecutorInterface
 
+
 class ContactExecutor(ExecutorInterface):
     def __init__(self, contacts_service):
         self.contacts_service = contacts_service
@@ -18,16 +19,16 @@ class ContactExecutor(ExecutorInterface):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "description": "The contact operation to perform: 'list' or 'search'"
+                        "description": "The contact operation to perform: 'list' or 'search'",
                     },
                     "search_string": {
                         "type": "string",
                         "description": "The string to search for in contacts' names or emails",
-                        "default": ""
-                    }
+                        "default": "",
+                    },
                 },
-                "required": ["operation"]
-            }
+                "required": ["operation"],
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -44,12 +45,16 @@ class ContactExecutor(ExecutorInterface):
         if not contacts:
             return "No contacts found."
 
-        return "\n".join([
-            f"Name: {contact['name']}, Emails: {', '.join(contact['emails'])}, Phones: {', '.join(contact['phones'])}"
-            for contact in contacts
-        ])
+        return "\n".join(
+            [
+                f"Name: {contact['name']}, Emails: {', '.join(contact['emails'])}, Phones: {', '.join(contact['phones'])}"
+                for contact in contacts
+            ]
+        )
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
-        return "Please summarize the contacts retrieved as short as possible and ask if the user " \
-               "needs any further action." \
-               f"Please always answer in Language '{user_language}'"
+        return (
+            "Please summarize the contacts retrieved as short as possible and ask if the user "
+            "needs any further action."
+            f"Please always answer in Language '{user_language}'"
+        )

@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
 
+
 class ExecutorInterface(ABC):
     """
     Abstract base class for executors that can be executed by GPT commands.
@@ -28,4 +29,3 @@ class ExecutorInterface(ABC):
         Returns instructions for GPT on how to interpret and present the result to the user.
         """
         pass
-
