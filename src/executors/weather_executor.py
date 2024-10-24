@@ -110,7 +110,11 @@ class WeatherExecutor(ExecutorInterface):
             str: Instructions for interpreting the result.
         """
         return (
-            "Please summarize the weather or forecast details as short as possible and ask if "
-            "the user needs any further information."
-            f"Please always answer in Language '{user_language}'"
+            "Please summarize the weather or forecast details as concisely as possible, focusing on clarity and readability. "
+            "Ensure that any numbers (such as temperatures, percentages, etc.) are presented in a human-friendly format, "
+            "with descriptive context (e.g., 'warm', 'cold', or 'chance of rain'). "
+            "When presenting numbers, format them for clarity in both text and audio output, ensuring they are easy to understand "
+            "(e.g., say 'twenty-five degrees Celsius' instead of just '25°C'). "
+            f"Please always answer in language '{user_language}'. "
+            "Ask if the user needs further information or clarification."
         )

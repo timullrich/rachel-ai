@@ -158,7 +158,7 @@ class ChatService:
                 # Maybe too much....
                 conversation_history.append(
                     {
-                        "role": "user",
+                        "role": "system",
                         "content": executor.get_result_interpreter_instructions(
                             user_language=self.user_language
                         ),

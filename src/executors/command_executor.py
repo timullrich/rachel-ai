@@ -52,7 +52,12 @@ class CommandExecutor(ExecutorInterface):
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         return (
-            f"Please explain the output of the previous executed command to the user as short"
-            " as possible. Also ask for further instructions! "
-            f"Please always answer in Language '{user_language}'"
+            f"Please interpret the output of the previously executed command based on its nature. "
+            f"If the output is structured (like a directory tree or list), display it in a visually organized format. "
+            f"For commands that return textual output, explain the result clearly and concisely, "
+            f"but do not omit important details. The output should reflect what would be seen in the terminal. "
+            f"Always respond in the language '{user_language}'. "
+            "If further instructions from the user are needed, ask for clarification. "
+            "Always consider the previous user input if it provides more context, but maintain the correct format of the result."
         )
+

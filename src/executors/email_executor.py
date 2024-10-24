@@ -160,7 +160,10 @@ class EmailExecutor(ExecutorInterface):
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         return (
-            f"Please summarize the result of the requested email operation as short as "
-            f"possible and ask if the user needs further actions."
-            f"Please always answer in Language '{user_language}'"
+            f"Please summarize the result of the requested email operation as concisely and clearly as possible. "
+            f"Ensure that any numbers (such as counts of emails, file sizes, or other numerical values), dates, and times are "
+            f"presented in a human-friendly format, with descriptive context."
+            f"Always answer in language '{user_language}'. "
+            f"Ask if the user needs further actions or clarification."
         )
+
