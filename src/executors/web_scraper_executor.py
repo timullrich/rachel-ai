@@ -9,46 +9,34 @@ class WebScraperExecutor(ExecutorInterface):
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "generic_web_scraping",
-            "description": "Scrapes titles or links from any web page.",
+            "description": "Scrapes the full HTML content from any web page.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "operation": {
-                        "type": "string",
-                        "description": "The web scraping operation to perform: 'get_titles' or 'get_links'.",
-                    },
                     "url": {
                         "type": "string",
                         "description": "The URL of the web page to scrape.",
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "The maximum number of results to return (default: 5).",
-                    },
+                    }
                 },
-                "required": ["operation", "url"],
+                "required": ["url"],
             },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:
-        operation = arguments.get("operation")
         url = arguments.get("url")
-        limit = arguments.get("limit", 5)  # Default to 5 if not provided
 
-        if operation == "get_titles":
-            titles = self.scraper_service.get_generic_titles(url, limit)
-            return "\n".join(titles) if titles else "No titles found."
+        try:
+            # Use the scrape_page method to fetch and parse the entire page content
+            page_text = self.scraper_service.scrape_page(url)
 
-        elif operation == "get_links":
-            links = self.scraper_service.get_generic_links(url, limit)
-            return "\n".join(links) if links else "No links found."
-
-        else:
-            return f"Invalid operation: {operation}"
+            return page_text
+        except Exception as e:
+            return f"Failed to retrieve content from {url}: {e}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         return (
-            f"Please summarize the result of the requested scraper operation and ask if the "
-            f"user needs further actions."
-            f"Please always answer in Language '{user_language}'"
+            "Analyze the user's request and provide the scraped web content as briefly as possible. "
+            "If the user request indicates specific details or sections of the page, focus on those elements. "
+            "If unsure whether further details are needed, ask the user. "
+            f"Always respond in the language '{user_language}'."
         )
