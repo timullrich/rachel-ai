@@ -6,10 +6,14 @@ from ._executor_interface import ExecutorInterface
 
 
 class CommandExecutor(ExecutorInterface):
+    def __init__(self, platform: str, user_language: str = "en"):
+        self.platform = platform
+        self.user_language = user_language
+
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
             "name": "execute_command",
-            "description": "Executes a system command on the Linux OS",
+            "description": f"Executes a system command on the {self.platform}",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -50,14 +54,10 @@ class CommandExecutor(ExecutorInterface):
                 return f"Error executing command: {e}"
         return "No command provided."
 
-    def get_result_interpreter_instructions(self, user_language="en") -> str:
+    def get_result_interpreter_instructions(self, user_language: str = "en") -> str:
         return (
-            f"Please interpret the output of the previously executed command based on its nature. "
-            f"If the output is structured (like a directory tree or list), display it in a visually organized format. "
-            f"For commands that return textual output, explain the result clearly and concisely, "
-            f"but do not omit important details. The output should reflect what would be seen in the terminal. "
+            "Analyze the user's request and provide the response as briefly as possible. "
+            "If the user's request contains indications for specific details, a list, or extended information, "
+            "provide an appropriately detailed response. If unsure whether further details are needed, ask the user."
             f"Always respond in the language '{user_language}'. "
-            "If further instructions from the user are needed, ask for clarification. "
-            "Always consider the previous user input if it provides more context, but maintain the correct format of the result."
         )
-

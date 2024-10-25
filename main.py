@@ -129,7 +129,7 @@ if __name__ == "__main__":
 
     # Register available task executors
     executors = [
-        CommandExecutor(),
+        CommandExecutor(user_language, platform),
         EmailExecutor(email_service, username),
         ContactExecutor(contacts_service),
         WeatherExecutor(weather_service),
