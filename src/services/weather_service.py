@@ -27,7 +27,7 @@ class WeatherService:
         self.user_language = user_language
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def get_weather(self, city_name: str) -> Dict[str, str]:
+    def get_weather(self, city_name: str) -> Dict:
         """
         Fetches the current weather data and detailed weather information for the specified city.
 
@@ -35,11 +35,7 @@ class WeatherService:
             city_name (str): The name of the city for which to retrieve the weather data.
 
         Returns:
-            Dict[str, str]: A dictionary containing weather details such as:
-                            - description: Weather description (e.g., "clear sky")
-                            - temperature: Temperature in Celsius
-                            - humidity: Humidity percentage
-                            - wind_speed: Wind speed in meters per second
+            Dict
 
         Raises:
             ConnectionError: If there is a connection issue with the Weather API.
@@ -53,18 +49,34 @@ class WeatherService:
             observation = mgr.weather_at_place(city_name)
             weather = observation.weather
 
-            # Extrahiere die Wetterdetails
-            weather_details = {
-                "description": weather.detailed_status,
-                "temperature": weather.temperature("celsius")["temp"],
+            weather_dict = {
+                "status": weather.status,
+                "detailed_status": weather.detailed_status,
+                "temperature": {
+                    "temp": round(weather.temperature("celsius")["temp"]),
+                    "temp_min": round(weather.temperature("celsius")["temp_min"]),
+                    "temp_max": round(weather.temperature("celsius")["temp_max"])
+                },
                 "humidity": weather.humidity,
-                "wind_speed": weather.wind()["speed"],
+                "pressure": {
+                    "press": weather.pressure["press"],
+                    "sea_level": weather.pressure.get("sea_level", None)
+                },
+                "wind": {
+                    "speed": round(weather.wind()["speed"], 1),
+                    "deg": weather.wind().get("deg", None)
+                },
+                "clouds": weather.clouds,
+                "rain": weather.rain if hasattr(weather, 'rain') else None,
+                "snow": weather.snow if hasattr(weather, 'snow') else None,
+                "visibility_distance": weather.visibility_distance
             }
 
             self.logger.info(
-                f"Successfully retrieved weather for {city_name}: {weather_details}"
+                f"Successfully retrieved weather for {city_name}: {weather}"
             )
-            return weather_details
+
+            return weather_dict
 
         except Exception as e:
             self.logger.error(
@@ -104,12 +116,26 @@ class WeatherService:
             # Filter forecast data to match the number of requested days (up to 5 days)
             filtered_forecast = [
                 {
-                    "time": weather.reference_time("iso"),
                     "status": weather.status,
                     "detailed_status": weather.detailed_status,
-                    "temperature": weather.temperature("celsius")["temp"],
-                    "wind_speed": weather.wind()["speed"],
+                    "temperature": {
+                        "temp": round(weather.temperature("celsius")["temp"]),
+                        "temp_min": round(weather.temperature("celsius")["temp_min"]),
+                        "temp_max": round(weather.temperature("celsius")["temp_max"])
+                    },
                     "humidity": weather.humidity,
+                    "pressure": {
+                        "press": weather.pressure["press"],
+                        "sea_level": weather.pressure.get("sea_level", None)
+                    },
+                    "wind": {
+                        "speed": round(weather.wind()["speed"], 1),
+                        "deg": weather.wind().get("deg", None)
+                    },
+                    "clouds": weather.clouds,
+                    "rain": weather.rain if hasattr(weather, 'rain') else None,
+                    "snow": weather.snow if hasattr(weather, 'snow') else None,
+                    "visibility_distance": weather.visibility_distance
                 }
                 for weather in forecast_list
                 if self._is_within_days(weather.reference_time("iso"), days)

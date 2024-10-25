@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any
 from ._executor_interface import ExecutorInterface
 
@@ -64,12 +65,8 @@ class WeatherExecutor(ExecutorInterface):
             try:
                 # Abrufen der aktuellen Wetterdaten über den WeatherService
                 weather_details = self.weather_service.get_weather(city_name)
-                return (
-                    f"Weather in {city_name}: {weather_details['description']}, "
-                    f"Temperature: {weather_details['temperature']}°C, "
-                    f"Humidity: {weather_details['humidity']}%, "
-                    f"Wind speed: {weather_details['wind_speed']} m/s"
-                )
+                weather_json = json.dumps(weather_details)
+                return weather_json
             except Exception as e:
                 return f"Error fetching weather data for {city_name}: {e}"
 
@@ -79,19 +76,9 @@ class WeatherExecutor(ExecutorInterface):
                 forecast_details = self.weather_service.get_forecast(
                     city_name, days_ahead
                 )
-                forecast_str = (
-                    f"Forecast for {city_name} for the next {days_ahead} day(s):\n"
-                )
 
-                for entry in forecast_details:
-                    forecast_str += (
-                        f"Time: {entry['time']}, "
-                        f"Status: {entry['detailed_status']}, "
-                        f"Temp: {entry['temperature']}°C, "
-                        f"Humidity: {entry['humidity']}%, "
-                        f"Wind speed: {entry['wind_speed']} m/s\n"
-                    )
-                return forecast_str.strip()
+                weather_json = json.dumps(forecast_details)
+                return weather_json
 
             except Exception as e:
                 return f"Error fetching forecast data for {city_name} (for {days_ahead} day(s)): {e}"
@@ -110,11 +97,11 @@ class WeatherExecutor(ExecutorInterface):
             str: Instructions for interpreting the result.
         """
         return (
-            "Please summarize the weather or forecast details as concisely as possible, focusing on clarity and readability. "
-            "Ensure that any numbers (such as temperatures, percentages, etc.) are presented in a human-friendly format, "
-            "with descriptive context (e.g., 'warm', 'cold', or 'chance of rain'). "
-            "When presenting numbers, format them for clarity in both text and audio output, ensuring they are easy to understand "
-            "(e.g., say 'twenty-five degrees Celsius' instead of just '25°C'). "
-            f"Please always answer in language '{user_language}'. "
-            "Ask if the user needs further information or clarification."
+            "Interpret the weather forecast in a clear, user-friendly format. "
+            "For general questions about the forecast (e.g., whether rain is expected), provide only a brief summary answer. "
+            "If the user asks for detailed information (like temperatures, humidity, or specific conditions for each day), include these details as requested. "
+            "Always use concise descriptions and avoid excessive details unless explicitly requested. "
+            "For multi-day forecasts, summarize key information instead of providing full daily reports unless the user specifically asks. "
+            f"Always respond in the language '{user_language}'."
         )
+
