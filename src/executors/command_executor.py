@@ -1,5 +1,5 @@
 import subprocess
-import shlex
+import tempfile
 from typing import Dict, Any
 
 from ._executor_interface import ExecutorInterface
@@ -30,16 +30,21 @@ class CommandExecutor(ExecutorInterface):
         command = arguments.get("command")
         if command:
             try:
-                # Verwende shlex.split, um den Befehl in korrekt gesplittete Teile zu zerlegen
-                split_command = shlex.split(command)
+                # Schreibe das Kommando in eine temporäre Datei, um es direkt auszuführen
+                with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as temp_file:
+                    # Schreibe den Befehl und überprüfe die Syntax für sed -i '' auf macOS
+                    if "sed -i ''" in command:
+                        command = command.replace("sed -i ''", "sed -i ''")
+                    temp_file.write(command)
+                    temp_file_path = temp_file.name
 
-                # Debug: Optional - Den gesplitteten Befehl anzeigen, um ihn zu überprüfen
-                print(f"Split command: {split_command}")
-
-                # Führe den Befehl aus
+                # Führe die temporäre Datei aus und führe sie in einer Shell aus
                 result = subprocess.run(
-                    split_command, shell=True, capture_output=True, text=True
+                    f"bash {temp_file_path}", shell=True, capture_output=True, text=True
                 )
+
+                # Entferne die temporäre Datei nach Ausführung
+                temp_file.close()
 
                 # Kombiniere stdout und stderr, um immer alle Infos zu haben
                 output = result.stdout.strip()
@@ -48,7 +53,6 @@ class CommandExecutor(ExecutorInterface):
                 if result.returncode == 0:
                     return output if output else "Command executed successfully."
                 else:
-                    # Gebe sowohl stdout als auch stderr zurück, wenn ein Fehler auftritt
                     return f"Command returned non-zero exit code {result.returncode}.\nOutput: {output}\nError: {error}"
             except Exception as e:
                 return f"Error executing command: {e}"
