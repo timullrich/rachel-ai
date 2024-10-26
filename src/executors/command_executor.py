@@ -38,7 +38,7 @@ class CommandExecutor(ExecutorInterface):
 
                 # Führe den Befehl aus
                 result = subprocess.run(
-                    split_command, shell=False, capture_output=True, text=True
+                    split_command, shell=True, capture_output=True, text=True
                 )
 
                 # Kombiniere stdout und stderr, um immer alle Infos zu haben
