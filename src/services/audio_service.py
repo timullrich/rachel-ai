@@ -1,5 +1,6 @@
 # Standard library imports
 import concurrent.futures
+import datetime
 import io
 import logging
 import os
@@ -384,45 +385,38 @@ class AudioService:
         )
         return "", text_buffer, in_code_block
 
+    import datetime
+
     def parse_special_content(self, text: str, in_code_block: bool) -> Tuple[str, bool]:
         """
-        Parse the text to replace links and identify code blocks.
-        :param text: The input text that may contain links or code snippets.
+        Parse the text to replace links, identify code blocks, and handle numbers and dates.
+        :param text: The input text that may contain links, code snippets, numbers, and dates.
         :param in_code_block: A flag indicating if currently inside a code block.
         :return: A tuple containing the modified text and a boolean indicating if inside a code block.
         """
-        # Buffer any incomplete link parts for future processing
-        if 'http' in text and not re.search(r'https?://\S+\.\S+', text):
-            # Incomplete URL detected; buffer it without processing
-            return text, in_code_block
-
-        # Replace URLs with "Den Link findest du in der Textausgabe."
-        text = re.sub(r'\[([^\]]+)\]\(https?://[^\s]+?\)', 'Den Link findest du in der Textausgabe.', text)
+        # Handle links in Markdown format [Text](URL)
+        text = re.sub(r'\[([^\]]+)\]\(https?://[^\s]+?\)',
+                      'Den Link findest du in der Textausgabe.', text)
 
         # Check for the start or end of a code block with triple backticks ```
         if in_code_block:
-            # If already inside a code block, look for the closing ```
             end_match = re.search(r'```', text)
             if end_match:
                 text = 'Den Quellcode findest du in der Textausgabe.' + text[end_match.end():]
                 in_code_block = False
             else:
-                # Still inside the code block; skip sentence processing
                 text = 'Den Quellcode findest du in der Textausgabe.'
         else:
-            # Look for an opening code block with triple backticks ```
             start_match = re.search(r'```', text)
             if start_match:
                 end_match = re.search(r'```', text[start_match.end():])
                 if end_match:
-                    # Code block starts and ends within this text
                     text = (
                             text[:start_match.start()]
                             + 'Den Quellcode findest du in der Textausgabe.'
                             + text[start_match.end() + end_match.end():]
                     )
                 else:
-                    # Code block starts but does not end
                     text = (
                             text[:start_match.start()]
                             + 'Den Quellcode findest du in der Textausgabe.'
@@ -433,7 +427,67 @@ class AudioService:
         if not in_code_block:
             text = re.sub(r'``[^`]+``', 'Den Quellcode findest du in der Textausgabe.', text)
 
+        # Skip numbers in prices like "66.842 USD" to leave them as is
+        text = self.skip_price_numbers(text)
+
+        # Replace remaining numerals with written numbers
+        text = self.convert_numbers_to_words(text)
+
+        # Replace dates like "23.10.2024" with "dreiundzwanzigster Oktober zweitausendvierundzwanzig"
+        text = self.convert_dates_to_words(text)
+
         return text, in_code_block
+
+    def skip_price_numbers(self, text: str) -> str:
+        """
+        Leave prices (e.g., '66.842 USD') unchanged for TTS.
+        :param text: The input text containing prices.
+        :return: The modified text with prices preserved.
+        """
+        # Match prices with pattern 'X.XXX USD' or 'XX,XXX EUR' and keep them unchanged
+        return re.sub(r'\b\d{1,3}(?:[.,]\d{3})* (USD|EUR)\b', lambda m: m.group(), text)
+
+    def convert_numbers_to_words(self, text: str) -> str:
+        """
+        Replace numerical values with their written forms, excluding already formatted prices.
+        :param text: The input text containing numbers.
+        :return: The modified text with numbers written out.
+        """
+        # Map of numbers to words
+        numbers_map = {
+            "0": "null", "1": "eins", "2": "zwei", "3": "drei", "4": "vier",
+            "5": "fünf", "6": "sechs", "7": "sieben", "8": "acht", "9": "neun",
+        }
+
+        def number_to_word(match):
+            num_str = match.group()
+            return ' '.join(numbers_map[digit] for digit in num_str if digit in numbers_map)
+
+        # Replace isolated numbers
+        return re.sub(r'\b\d+\b', number_to_word, text)
+
+    def convert_dates_to_words(self, text: str) -> str:
+        """
+        Replace date formats (e.g., DD.MM.YYYY) with spoken forms.
+        :param text: The input text containing dates.
+        :return: The modified text with dates written out.
+        """
+
+        def date_to_words(match):
+            date_str = match.group()
+            try:
+                # Parse the date string
+                date_obj = datetime.datetime.strptime(date_str, "%d.%m.%Y")
+                day = date_obj.day
+                month = date_obj.strftime("%B")  # Get full month name
+                year = date_obj.year
+                # Convert day and year to words
+                return f"{day}. {month} {year}"
+            except ValueError:
+                return date_str  # If parsing fails, return the original string
+
+        # Replace dates in the format DD.MM.YYYY
+        return re.sub(r'\b\d{2}\.\d{2}\.\d{4}\b', date_to_words, text)
 
     def play_stream_audio(
             self, stream: Any, samplerate: int = 24000, channels: int = 1
