@@ -5,6 +5,7 @@ from .crypto_data_service import CryptoDataService
 from .email_service import EmailService
 from .weather_service import WeatherService
 from .web_scraper_service import WebScraperService
+from .spotify_service import SpotifyService
 
 __all__ = [
     "AudioService",
@@ -14,4 +15,5 @@ __all__ = [
     "WeatherService",
     "WebScraperService",
     "CryptoDataService",
+    "SpotifyService",
 ]

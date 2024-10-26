@@ -14,6 +14,7 @@ from src.connectors import OpenAiConnector, StreamSplitter
 from src.connectors import SmtpConnector, ImapConnector
 from src.connectors import OpenWeatherMapConnector
 from src.connectors import CoinGeckoConnector
+from src.connectors import SpotifyConnector
 
 from src.entities import AudioRecordResult
 from src.services import (
@@ -24,6 +25,7 @@ from src.services import (
     WeatherService,
     WebScraperService,
     CryptoDataService,
+    SpotifyService,
 )
 from src.executors import (
     CommandExecutor,
@@ -32,6 +34,7 @@ from src.executors import (
     WeatherExecutor,
     WebScraperExecutor,
     CryptoDataExecutor,
+    SpotifyExecutor,
 )
 
 
@@ -109,6 +112,13 @@ if __name__ == "__main__":
         os.getenv("OPEN_WEATHER_MAP_API_KEY")
     )
 
+    spotify_connector = SpotifyConnector(
+        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+        client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+        redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
+        scope="user-library-read playlist-read-private user-modify-playback-state user-read-playback-state"
+    )
+
     coin_gecko_connector: CoinGeckoConnector = CoinGeckoConnector()
 
     # Init services
@@ -117,6 +127,7 @@ if __name__ == "__main__":
     weather_service = WeatherService(weather_connector)
     web_scraper_service = WebScraperService()
     crypto_data_service = CryptoDataService(coin_gecko_connector)
+    spotify_service = SpotifyService(spotify_connector)
 
     audio_service = AudioService(
         open_ai_connector, user_language=user_language, sound_theme=sound_theme
@@ -135,7 +146,7 @@ if __name__ == "__main__":
         WeatherExecutor(weather_service),
         WebScraperExecutor(web_scraper_service),
         CryptoDataExecutor(crypto_data_service),
-        # Other executors like EmailExecutor(), ReminderExecutor(), etc.
+        SpotifyExecutor(spotify_service),
     ]
 
     # chat service needs to be initialized after the executors
