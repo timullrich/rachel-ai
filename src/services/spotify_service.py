@@ -251,17 +251,9 @@ class SpotifyService:
         try:
             self.spotify_connector.connect()
             results = self.spotify_connector.client.search(q=query, type="track", limit=limit)
-            tracks = [
-                {
-                    "name": track["name"],
-                    "artist": ", ".join([artist["name"] for artist in track["artists"]]),
-                    "album": track["album"]["name"],
-                    "uri": track["uri"]
-                }
-                for track in results["tracks"]["items"]
-            ]
-            self.logger.info(f"Found {len(tracks)} tracks for query '{query}'.")
-            return tracks
+
+            self.logger.info(f"Found {len(results['tracks']['items'])} tracks for query '{query}'.")
+            return results
 
         except Exception as e:
             self.logger.error("Failed to search tracks.", exc_info=True)
