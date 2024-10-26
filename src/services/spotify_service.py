@@ -278,6 +278,48 @@ class SpotifyService:
             self.logger.error("Failed to search tracks.", exc_info=True)
             raise ConnectionError(f"Could not search tracks: {e}")
 
+    def get_similar_tracks(self, seed_track_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Recommends similar tracks based on a provided track ID.
+
+        Args:
+            seed_track_id (str): The Spotify track ID to base recommendations on.
+            limit (int): The maximum number of recommended tracks to return (default is 10).
+
+        Returns:
+            List[Dict[str, Any]]: A list of recommended tracks, each with details like name, artist, and album.
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Fetching similar tracks for track ID: {seed_track_id}")
+
+        try:
+            self.spotify_connector.connect()
+
+            # Call Spotify's recommendations endpoint
+            results = self.spotify_connector.client.recommendations(seed_tracks=[seed_track_id],
+                                                                    limit=limit)
+
+            similar_tracks = [
+                {
+                    "name": track["name"],
+                    "artist": ", ".join(artist["name"] for artist in track["artists"]),
+                    "album": track["album"]["name"],
+                    "track_id": track["id"]
+                }
+                for track in results["tracks"]
+            ]
+
+            self.logger.info(f"Retrieved {len(similar_tracks)} similar tracks.")
+            return similar_tracks
+
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve similar tracks for track ID '{seed_track_id}'.",
+                              exc_info=True)
+            raise ConnectionError(
+                f"Could not fetch similar tracks for track ID '{seed_track_id}': {e}")
+
     def get_track_details(self, track_id: str) -> Optional[Dict[str, str]]:
         """
         Fetches details for a specific track by track ID.
@@ -339,34 +381,36 @@ class SpotifyService:
             self.logger.error(f"Failed to play track ID '{track_id}': {e}", exc_info=True)
             raise ConnectionError(f"Could not start playback for track ID '{track_id}': {e}")
 
-    def add_track_to_queue(self, track_id: str, device_id: str = None) -> str:
+    def add_tracks_to_queue(self, track_ids: List[str], device_id: str = None) -> str:
         """
-        Adds a specific track to the playback queue.
+        Adds multiple tracks to the playback queue.
 
         Args:
-            track_id (str): The Spotify track ID to add to the queue.
-            device_id (str, optional): The ID of the device to add the track on. Defaults to None.
+            track_ids (List[str]): A list of Spotify track IDs to add to the queue.
+            device_id (str, optional): The ID of the device to add the tracks on. Defaults to None.
 
         Returns:
-            str: A confirmation message if the track was successfully added to the queue.
+            str: A confirmation message if the tracks were successfully added to the queue.
 
         Raises:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
         self.logger.info(
-            f"Attempting to add track ID {track_id} to the queue on device {device_id or 'active device'}.")
+            f"Attempting to add {len(track_ids)} tracks to the queue on device {device_id or 'active device'}.")
 
         try:
             self.spotify_connector.connect()
-            self.spotify_connector.client.add_to_queue(uri=f"spotify:track:{track_id}",
-                                                       device_id=device_id)
 
-            self.logger.info(f"Track {track_id} added to the queue.")
-            return f"Track {track_id} added to the queue on device {device_id or 'active device'}."
+            for track_id in track_ids:
+                self.spotify_connector.client.add_to_queue(uri=f"spotify:track:{track_id}",
+                                                           device_id=device_id)
+                self.logger.info(f"Track {track_id} added to the queue.")
+
+            return f"{len(track_ids)} tracks added to the queue on device {device_id or 'active device'}."
 
         except Exception as e:
-            self.logger.error(f"Failed to add track {track_id} to the queue.", exc_info=True)
-            raise ConnectionError(f"Could not add track {track_id} to the queue: {e}")
+            self.logger.error("Failed to add tracks to the queue.", exc_info=True)
+            raise ConnectionError(f"Could not add tracks to the queue: {e}")
 
     def play_playlist(self, playlist_id: str, device_id: str = None) -> str:
         """

@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Any
+from typing import Dict, Any, List
 from ._executor_interface import ExecutorInterface
 
 
@@ -26,7 +26,7 @@ class SpotifyExecutor(ExecutorInterface):
                 "Performs Spotify-related operations. "
                 "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
                 "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
-                "and 'add_track_to_queue'."
+                "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'."
             ),
             "parameters": {
                 "type": "object",
@@ -36,12 +36,19 @@ class SpotifyExecutor(ExecutorInterface):
                         "description": (
                             "The Spotify operation to perform: 'get_user_playlists', 'search_track', 'get_track_details', "
                             "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
-                            "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', 'set_volume', 'play_playlist'."
+                            "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', "
+                            "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks'."
                         ),
                     },
                     "query": {
                         "type": "string",
                         "description": "The search query, required only for 'search_track'. Example: track name or artist name.",
+                    },
+                    "seed_track_id": {
+                        "type": "string",
+                        "description": (
+                            "The Spotify track ID to base recommendations on. Required for 'get_similar_tracks' operation."
+                        ),
                     },
                     "track_id": {
                         "type": "string",
@@ -55,9 +62,16 @@ class SpotifyExecutor(ExecutorInterface):
                             "The Spotify playlist ID, required for 'play_playlist' operation. Example: Spotify URI or playlist ID."
                         ),
                     },
+                    "track_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "A list of Spotify track IDs to add to the queue. Required for 'add_tracks_to_queue'."
+                        ),
+                    },
                     "limit": {
                         "type": "integer",
-                        "description": "The number of results to return (optional, default is 10). Applicable to 'search_track' and 'get_liked_songs'.",
+                        "description": "The number of results to return (optional, default is 10). Applicable to 'search_track', 'get_liked_songs', and 'get_similar_tracks'.",
                     },
                     "offset": {
                         "type": "integer",
@@ -93,11 +107,13 @@ class SpotifyExecutor(ExecutorInterface):
             str: The result of the Spotify operation in JSON format or an error message.
         """
         operation = arguments.get("operation")
-        query = arguments.get("query")
+        seed_track_id = arguments.get("seed_track_id")
         track_id = arguments.get("track_id")
+        track_ids = arguments.get("track_ids")
         limit = arguments.get("limit", 10)
         offset = arguments.get("offset", 0)
         device_id = arguments.get("device_id")
+        volume_percent = arguments.get("volume_percent")
 
         try:
             if operation == "get_user_playlists":
@@ -105,6 +121,7 @@ class SpotifyExecutor(ExecutorInterface):
                 return json.dumps(playlists)
 
             elif operation == "search_track":
+                query = arguments.get("query")
                 if not query:
                     return "Missing required parameter 'query' for 'search_track' operation."
                 tracks = self.spotify_service.search_track(query, limit)
@@ -159,16 +176,29 @@ class SpotifyExecutor(ExecutorInterface):
                 queue_message = self.spotify_service.add_track_to_queue(track_id, device_id=device_id)
                 return queue_message
 
+            elif operation == "add_tracks_to_queue":
+                if not track_ids:
+                    return "Missing required parameter 'track_ids' for 'add_tracks_to_queue' operation."
+                queue_message = self.spotify_service.add_tracks_to_queue(track_ids, device_id=device_id)
+                return queue_message
+
             elif operation == "set_volume":
                 volume_percent = arguments.get("volume_percent")
                 if volume_percent is None:
                     return "Missing required parameter 'volume_percent' for 'set_volume' operation."
                 try:
-                    volume_message = self.spotify_service.set_volume(volume_percent,
-                                                                     device_id=device_id)
+                    volume_message = self.spotify_service.set_volume(volume_percent, device_id=device_id)
                     return volume_message
+
                 except Exception as e:
                     return f"Error setting volume to {volume_percent}%: {e}"
+
+            elif operation == "get_similar_tracks":
+                if not seed_track_id:
+                    return "Missing required parameter 'seed_track_id' for 'get_similar_tracks' operation."
+                similar_tracks = self.spotify_service.get_similar_tracks(seed_track_id, limit=limit)
+                return json.dumps(similar_tracks)
+
             else:
                 return f"Invalid operation: {operation}"
 
@@ -197,6 +227,9 @@ class SpotifyExecutor(ExecutorInterface):
             "For skipping to the next track, confirm that the track was skipped. "
             "For current playback info, summarize the track name, artist, and playback position. "
             "For adding a track to the queue, confirm that the track was successfully added. "
+            "For adding multiple tracks, confirm the number of tracks added to the queue. "
+            "For setting volume, confirm the new volume percentage. "
+            "For similar tracks, list the recommended tracks with track name, artist, and album. "
             "When retrieving liked songs, if the user requests 'next songs' or 'more songs', "
             "use the 'offset' parameter by incrementing it by the 'limit' (typically 50) to retrieve the next set of songs. "
             f"Always respond in the language '{user_language}'."
