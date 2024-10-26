@@ -431,7 +431,7 @@ class AudioService:
         text = self.skip_price_numbers(text)
 
         # Replace remaining numerals with written numbers
-        text = self.convert_numbers_to_words(text)
+        # text = self.convert_numbers_to_words(text)
 
         # Replace dates like "23.10.2024" with "dreiundzwanzigster Oktober zweitausendvierundzwanzig"
         text = self.convert_dates_to_words(text)
