@@ -24,9 +24,9 @@ class SpotifyExecutor(ExecutorInterface):
             "name": "spotify_operations",
             "description": (
                 "Performs Spotify-related operations. "
-                "Supports 'get_user_playlists' for user's playlists, 'search_track' for searching tracks, "
-                "'get_track_details' for retrieving details of a specific track, 'get_liked_songs' "
-                "for retrieving the user's liked songs, and 'play_track' to play a specific track on an active device."
+                "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
+                "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
+                "and 'add_track_to_queue'."
             ),
             "parameters": {
                 "type": "object",
@@ -34,40 +34,46 @@ class SpotifyExecutor(ExecutorInterface):
                     "operation": {
                         "type": "string",
                         "description": (
-                            "The Spotify operation to perform: 'get_user_playlists', 'search_track', "
-                            "'get_track_details', 'get_liked_songs', 'play_track'."
+                            "The Spotify operation to perform: 'get_user_playlists', 'search_track', 'get_track_details', "
+                            "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
+                            "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', 'set_volume', 'play_playlist'."
                         ),
                     },
                     "query": {
                         "type": "string",
-                        "description": (
-                            "The search query, required only for 'search_track'. Example: track name or artist name."
-                        ),
+                        "description": "The search query, required only for 'search_track'. Example: track name or artist name.",
                     },
                     "track_id": {
                         "type": "string",
                         "description": (
-                            "The Spotify track ID, required for 'get_track_details' and 'play_track'. "
-                            "Example: Spotify URI or track ID."
+                            "The Spotify track ID, required for 'get_track_details', 'play_track', and 'add_track_to_queue'."
+                        ),
+                    },
+                    "playlist_id": {
+                        "type": "string",
+                        "description": (
+                            "The Spotify playlist ID, required for 'play_playlist' operation. Example: Spotify URI or playlist ID."
                         ),
                     },
                     "limit": {
                         "type": "integer",
-                        "description": (
-                            "The number of results to return (optional, default is 10). Applicable to 'search_track' and 'get_liked_songs'."
-                        ),
+                        "description": "The number of results to return (optional, default is 10). Applicable to 'search_track' and 'get_liked_songs'.",
                     },
                     "offset": {
                         "type": "integer",
-                        "description": (
-                            "The index of the first result to return, useful for pagination in 'get_liked_songs'."
-                        ),
+                        "description": "The index of the first result to return, useful for pagination in 'get_liked_songs'.",
                     },
                     "device_id": {
                         "type": "string",
                         "description": (
-                            "The ID of the device to play the track on (optional). "
-                            "Applicable only to 'play_track' operation. If omitted, the currently active device will be used."
+                            "The ID of the device to play or control playback on (optional). "
+                            "Applicable to 'play_track', 'pause_playback', 'skip_to_next_track', and 'add_track_to_queue'."
+                        ),
+                    },
+                    "volume_percent": {
+                        "type": "integer",
+                        "description": (
+                            "The target volume percentage (0 to 100) for 'set_volume' operation."
                         ),
                     },
                 },
@@ -93,49 +99,81 @@ class SpotifyExecutor(ExecutorInterface):
         offset = arguments.get("offset", 0)
         device_id = arguments.get("device_id")
 
-        if operation == "get_user_playlists":
-            try:
+        try:
+            if operation == "get_user_playlists":
                 playlists = self.spotify_service.get_user_playlists()
                 return json.dumps(playlists)
-            except Exception as e:
-                return f"Error fetching user playlists: {e}"
 
-        elif operation == "search_track":
-            if not query:
-                return "Missing required parameter 'query' for 'search_track' operation."
-            try:
+            elif operation == "search_track":
+                if not query:
+                    return "Missing required parameter 'query' for 'search_track' operation."
                 tracks = self.spotify_service.search_track(query, limit)
                 return json.dumps(tracks)
-            except Exception as e:
-                return f"Error searching for track '{query}': {e}"
 
-        elif operation == "get_track_details":
-            if not track_id:
-                return "Missing required parameter 'track_id' for 'get_track_details' operation."
-            try:
+            elif operation == "get_track_details":
+                if not track_id:
+                    return "Missing required parameter 'track_id' for 'get_track_details' operation."
                 track_details = self.spotify_service.get_track_details(track_id)
                 return json.dumps(track_details)
-            except Exception as e:
-                return f"Error fetching track details for ID '{track_id}': {e}"
 
-        elif operation == "get_liked_songs":
-            try:
+            elif operation == "get_liked_songs":
                 liked_songs = self.spotify_service.get_liked_songs(limit=limit, offset=offset)
                 return json.dumps(liked_songs)
-            except Exception as e:
-                return f"Error fetching liked songs: {e}"
 
-        elif operation == "play_track":
-            if not track_id:
-                return "Missing required parameter 'track_id' for 'play_track' operation."
-            try:
+            elif operation == "play_track":
+                if not track_id:
+                    return "Missing required parameter 'track_id' for 'play_track' operation."
                 playback_message = self.spotify_service.play_track(track_id, device_id=device_id)
                 return playback_message
-            except Exception as e:
-                return f"Error playing track with ID '{track_id}': {e}"
 
-        else:
-            return f"Invalid operation: {operation}"
+            elif operation == "play_playlist":
+                playlist_id = arguments.get("playlist_id")
+                if not playlist_id:
+                    return "Missing required parameter 'playlist_id' for 'play_playlist' operation."
+                try:
+                    playlist_message = self.spotify_service.play_playlist(playlist_id,
+                                                                          device_id=device_id)
+                    return playlist_message
+                except Exception as e:
+                    return f"Error playing playlist with ID '{playlist_id}': {e}"
+
+            elif operation == "get_available_devices":
+                devices = self.spotify_service.get_available_devices()
+                return json.dumps(devices)
+
+            elif operation == "pause_playback":
+                pause_message = self.spotify_service.pause_playback(device_id=device_id)
+                return pause_message
+
+            elif operation == "skip_to_next_track":
+                skip_message = self.spotify_service.skip_to_next_track(device_id=device_id)
+                return skip_message
+
+            elif operation == "get_current_playback_info":
+                playback_info = self.spotify_service.get_current_playback_info()
+                return json.dumps(playback_info) if playback_info else "No active playback found."
+
+            elif operation == "add_track_to_queue":
+                if not track_id:
+                    return "Missing required parameter 'track_id' for 'add_track_to_queue' operation."
+                queue_message = self.spotify_service.add_track_to_queue(track_id, device_id=device_id)
+                return queue_message
+
+            elif operation == "set_volume":
+                volume_percent = arguments.get("volume_percent")
+                if volume_percent is None:
+                    return "Missing required parameter 'volume_percent' for 'set_volume' operation."
+                try:
+                    volume_message = self.spotify_service.set_volume(volume_percent,
+                                                                     device_id=device_id)
+                    return volume_message
+                except Exception as e:
+                    return f"Error setting volume to {volume_percent}%: {e}"
+            else:
+                return f"Invalid operation: {operation}"
+
+        except Exception as e:
+            return f"Error performing operation '{operation}': {e}"
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         """
@@ -154,6 +192,11 @@ class SpotifyExecutor(ExecutorInterface):
             "For track details, summarize key information like release date, artist, and album. "
             "For liked songs, list the song names, main artist, and album name. "
             "For playing a track, confirm that the track is now playing and mention the device if specified. "
+            "For available devices, list the device names and types. "
+            "For pausing playback, confirm that playback is paused. "
+            "For skipping to the next track, confirm that the track was skipped. "
+            "For current playback info, summarize the track name, artist, and playback position. "
+            "For adding a track to the queue, confirm that the track was successfully added. "
             "When retrieving liked songs, if the user requests 'next songs' or 'more songs', "
             "use the 'offset' parameter by incrementing it by the 'limit' (typically 50) to retrieve the next set of songs. "
             f"Always respond in the language '{user_language}'."
