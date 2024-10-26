@@ -37,7 +37,8 @@ class SpotifyExecutor(ExecutorInterface):
                             "The Spotify operation to perform: 'get_user_playlists', 'search_track', 'get_track_details', "
                             "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
                             "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', "
-                            "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks'."
+                            "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks', "
+                            "'get_album_details', 'get_multiple_albums'."
                         ),
                     },
                     "query": {
@@ -88,6 +89,19 @@ class SpotifyExecutor(ExecutorInterface):
                         "type": "integer",
                         "description": (
                             "The target volume percentage (0 to 100) for 'set_volume' operation."
+                        ),
+                    },
+                    "album_id": {
+                        "type": "string",
+                        "description": (
+                            "The Spotify album ID, required for 'get_album_details' operation. Example: Spotify URI or album ID."
+                        ),
+                    },
+                    "album_ids": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "A list of Spotify album IDs to fetch multiple albums. Required for 'get_multiple_albums'."
                         ),
                     },
                 },
@@ -199,6 +213,25 @@ class SpotifyExecutor(ExecutorInterface):
                 similar_tracks = self.spotify_service.get_similar_tracks(seed_track_id, limit=limit)
                 return json.dumps(similar_tracks)
 
+            elif operation == "get_album_details":
+                album_id = arguments.get("album_id")
+                if not album_id:
+                    return "Missing required parameter 'album_id' for 'get_album_details' operation."
+                try:
+                    album_details = self.spotify_service.get_album_details(album_id)
+                    return json.dumps(album_details)
+                except Exception as e:
+                    return f"Error fetching album details for ID '{album_id}': {e}"
+
+            elif operation == "get_multiple_albums":
+                album_ids = arguments.get("album_ids")
+                if not album_ids:
+                    return "Missing required parameter 'album_ids' for 'get_multiple_albums' operation."
+                try:
+                    multiple_albums = self.spotify_service.get_multiple_albums(album_ids)
+                    return json.dumps(multiple_albums)
+                except Exception as e:
+                    return f"Error fetching multiple albums: {e}"
             else:
                 return f"Invalid operation: {operation}"
 
@@ -217,10 +250,11 @@ class SpotifyExecutor(ExecutorInterface):
         """
         return (
             "Interpret the Spotify response in a clear, user-friendly format. "
-            "For any requests that rely on time-sensitive or currently playing content, retrieve fresh, real-time data "
-            "and avoid using chat history for previous responses. "
-            "Summarize playlists, track details, and playback information concisely, including artist, album, and track name as relevant. "
-            "Confirm actions for queue additions, playback controls (play, pause, volume), and recommendations. "
-            "For paginated data requests, explain how the user can access additional results if applicable. "
+            "Always retrieve fresh, real-time data for each request and avoid referring to any chat history. "
+            "Provide very brief and general responses, focusing on key points like artist, album, and track names. "
+            "Only offer more detailed information, such as track duration or release dates, if explicitly requested. "
+            "Confirm actions like adding to the queue, playback controls (play, pause, volume), and recommendations concisely. "
+            "For requests involving paginated data, indicate how users can access additional results if necessary. "
             f"Always respond in the language '{user_language}'."
         )
+

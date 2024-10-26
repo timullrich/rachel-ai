@@ -153,18 +153,7 @@ class SpotifyService:
             playback_info = self.spotify_connector.client.current_playback()
 
             if playback_info:
-                return {
-                    "is_playing": playback_info["is_playing"],
-                    "progress_ms": playback_info["progress_ms"],
-                    "track": {
-                        "name": playback_info["item"]["name"],
-                        "artist": ", ".join(
-                            [artist["name"] for artist in playback_info["item"]["artists"]]),
-                        "album": playback_info["item"]["album"]["name"],
-                        "track_id": playback_info["item"]["id"]
-                    },
-                    "device": playback_info["device"]["name"] if playback_info["device"] else None
-                }
+                return playback_info
             else:
                 self.logger.info("No active playback.")
                 return None
@@ -442,3 +431,56 @@ class SpotifyService:
         except Exception as e:
             self.logger.error(f"Failed to play playlist ID '{playlist_id}': {e}", exc_info=True)
             raise ConnectionError(f"Could not start playback for playlist ID '{playlist_id}': {e}")
+
+    def get_album_details(self, album_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetches details for a specific album by album ID.
+
+        Args:
+            album_id (str): The Spotify album ID.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary with details about the album (name, artist, release date, total tracks, and track list).
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Fetching details for album ID: {album_id}")
+
+        try:
+            self.spotify_connector.connect()
+            album = self.spotify_connector.client.album(album_id)
+
+            self.logger.info(f"Successfully retrieved details for album '{album['name']}'.")
+            return dict(album)
+
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve album details for ID '{album_id}'.",
+                              exc_info=True)
+            raise ConnectionError(f"Could not fetch album details for ID '{album_id}': {e}")
+
+    def get_multiple_albums(self, album_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetches details for multiple albums by their IDs.
+
+        Args:
+            album_ids (List[str]): A list of Spotify album IDs.
+
+        Returns:
+            Dict: A list of dictionaries with details for each album.
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Fetching details for multiple albums: {album_ids}")
+
+        try:
+            self.spotify_connector.connect()
+            albums = self.spotify_connector.client.albums(album_ids)["albums"]
+
+            self.logger.info(f"Successfully retrieved details for {len(albums)} albums.")
+            return albums
+
+        except Exception as e:
+            self.logger.error("Failed to retrieve multiple albums.", exc_info=True)
+            raise ConnectionError(f"Could not fetch album details: {e}")
