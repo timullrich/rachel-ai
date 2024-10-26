@@ -34,10 +34,10 @@ class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
     def __init__(
-        self,
-        open_ai_connector: OpenAiConnector,
-        user_language: str = "en",
-        sound_theme: str = "default",
+            self,
+            open_ai_connector: OpenAiConnector,
+            user_language: str = "en",
+            sound_theme: str = "default",
     ) -> None:
         """
         Initializes the AudioService class with the necessary dependencies.
@@ -93,10 +93,10 @@ class AudioService:
             raise
 
     def record(
-        self,
-        sample_rate: int = 16000,
-        frame_duration_ms: int = 30,
-        max_silence_duration: float = 1.0,
+            self,
+            sample_rate: int = 16000,
+            frame_duration_ms: int = 30,
+            max_silence_duration: float = 1.0,
     ) -> AudioRecordResult:
         """
         Records audio dynamically, starting only when speech is detected,
@@ -120,7 +120,7 @@ class AudioService:
 
         # Using a context manager to ensure resources are properly managed
         with sd.InputStream(
-            samplerate=sample_rate, channels=1, dtype="int16"
+                samplerate=sample_rate, channels=1, dtype="int16"
         ) as stream:
             self.logger.info("Audio stream started.")
             start_time = time.time()  # Track the start time to handle silence timeouts
@@ -149,7 +149,7 @@ class AudioService:
                             break  # Stop the recording
 
                         silence_duration += (
-                            frame_duration_ms / 1000
+                                frame_duration_ms / 1000
                         )  # Increase silence duration
 
             finally:
@@ -198,7 +198,7 @@ class AudioService:
             return False
 
     def transcribe_audio(
-        self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
+            self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
     ) -> str:
         """
         Transcribes the recorded audio data using OpenAI's Whisper API.
@@ -277,7 +277,7 @@ class AudioService:
             with self.transcription_lock:
                 # Request OpenAI TTS API to convert the text to audio
                 with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
-                    model="tts-1", voice="nova", input=text, response_format="pcm"
+                        model="tts-1", voice="nova", input=text, response_format="pcm"
                 ) as response_audio:
                     self.logger.info("Audio of sentence received from OpenAI API.")
 
@@ -313,7 +313,7 @@ class AudioService:
 
         try:
             with sd.OutputStream(
-                samplerate=samplerate, channels=channels, dtype="int16"
+                    samplerate=samplerate, channels=channels, dtype="int16"
             ) as stream_audio:
                 self.logger.info("Audio stream started.")
 
@@ -341,36 +341,102 @@ class AudioService:
             self.logger.info("Audio playback finished and stream closed.")
             sd.wait()  # Ensure all audio buffers are played
 
-    def collect_until_sentence_end(self, text_buffer: str) -> Tuple[str, str]:
+    def collect_until_sentence_end(self, text_buffer: str, in_code_block: bool = False) -> Tuple[
+        str, str, bool]:
         """
         Collects text from the buffer until a sentence-ending punctuation (., !, ?) is detected.
+        Handles code blocks by ignoring sentence-ending punctuation within them.
 
         :param text_buffer: The input text buffer containing sentences.
+        :param in_code_block: Flag indicating if currently inside a code block.
         :return: A tuple where the first element is the sentence up to the punctuation mark,
-                 and the second element is the remaining text after the punctuation mark.
-                 If no sentence-ending punctuation is found, returns an empty string as the first
-                 element and the entire buffer as the second element.
+                 the second element is the remaining text after the punctuation mark,
+                 and the third element is the updated code block flag.
         """
+        # Apply special content parsing to handle links and code
+        processed_text, code_block_open = self.parse_special_content(text_buffer, in_code_block)
+
+        # Update the code block status
+        in_code_block = in_code_block or code_block_open
+
+        # If inside a code block, skip sentence detection
+        if in_code_block:
+            # Check if the code block closes within the current buffer
+            if re.search(r'```', processed_text):
+                in_code_block = False  # End of code block
+            return "", processed_text, in_code_block
+
         # Regex to detect sentence-ending punctuation followed by a space or end of text
-        match = re.search(r"[.!?](?=\s|$)", text_buffer)
+        match = re.search(r"[.!?](?=\s|$)", processed_text)
 
         if match:
             # Return the sentence and the remaining text
-            sentence = text_buffer[: match.end()]
-            remaining_text = text_buffer[match.end() :]
+            sentence = processed_text[: match.end()]
+            remaining_text = processed_text[match.end():]
             self.logger.debug(
                 f"Detected sentence end. Sentence: '{sentence}', Remaining: '{remaining_text}'"
             )
-            return sentence, remaining_text
+            return sentence.strip(), remaining_text.strip(), in_code_block
 
         # No sentence-ending punctuation found
         self.logger.debug(
             f"No sentence end detected. Returning entire buffer: '{text_buffer}'"
         )
-        return "", text_buffer
+        return "", text_buffer, in_code_block
+
+    def parse_special_content(self, text: str, in_code_block: bool) -> Tuple[str, bool]:
+        """
+        Parse the text to replace links and identify code blocks.
+        :param text: The input text that may contain links or code snippets.
+        :param in_code_block: A flag indicating if currently inside a code block.
+        :return: A tuple containing the modified text and a boolean indicating if inside a code block.
+        """
+        # Buffer any incomplete link parts for future processing
+        if 'http' in text and not re.search(r'https?://\S+\.\S+', text):
+            # Incomplete URL detected; buffer it without processing
+            return text, in_code_block
+
+        # Replace URLs with "Den Link findest du in der Textausgabe."
+        text = re.sub(r'\[([^\]]+)\]\(https?://[^\s]+?\)', 'Den Link findest du in der Textausgabe.', text)
+
+        # Check for the start or end of a code block with triple backticks ```
+        if in_code_block:
+            # If already inside a code block, look for the closing ```
+            end_match = re.search(r'```', text)
+            if end_match:
+                text = 'Den Quellcode findest du in der Textausgabe.' + text[end_match.end():]
+                in_code_block = False
+            else:
+                # Still inside the code block; skip sentence processing
+                text = 'Den Quellcode findest du in der Textausgabe.'
+        else:
+            # Look for an opening code block with triple backticks ```
+            start_match = re.search(r'```', text)
+            if start_match:
+                end_match = re.search(r'```', text[start_match.end():])
+                if end_match:
+                    # Code block starts and ends within this text
+                    text = (
+                            text[:start_match.start()]
+                            + 'Den Quellcode findest du in der Textausgabe.'
+                            + text[start_match.end() + end_match.end():]
+                    )
+                else:
+                    # Code block starts but does not end
+                    text = (
+                            text[:start_match.start()]
+                            + 'Den Quellcode findest du in der Textausgabe.'
+                    )
+                    in_code_block = True
+
+        # Replace inline code with double backticks (but ignore single backticks)
+        if not in_code_block:
+            text = re.sub(r'``[^`]+``', 'Den Quellcode findest du in der Textausgabe.', text)
+
+        return text, in_code_block
 
     def play_stream_audio(
-        self, stream: Any, samplerate: int = 24000, channels: int = 1
+            self, stream: Any, samplerate: int = 24000, channels: int = 1
     ) -> None:
         """
         Stream GPT responses, convert them into speech, and play the audio in a separate thread.
@@ -397,6 +463,7 @@ class AudioService:
         try:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future: Optional[concurrent.futures.Future] = None
+                in_code_block = False
                 for chunk in stream:
                     if chunk.choices[0].delta.content is not None:
                         content: str = chunk.choices[0].delta.content
@@ -405,8 +472,8 @@ class AudioService:
                         text_buffer += content
 
                         # Sentence detection and start speech processing
-                        sentence, remaining_text = self.collect_until_sentence_end(
-                            text_buffer
+                        sentence, remaining_text, in_code_block = self.collect_until_sentence_end(
+                            text_buffer, in_code_block
                         )
                         if sentence:
                             self.logger.debug(
