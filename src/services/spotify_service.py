@@ -232,6 +232,59 @@ class SpotifyService:
             self.logger.error("Failed to retrieve user playlists.", exc_info=True)
             raise ConnectionError(f"Could not fetch user playlists: {e}")
 
+    def get_playlist(self, playlist_id: str) -> dict:
+        """
+        Retrieves all available information about a specified playlist.
+
+        Args:
+            playlist_id (str): The Spotify ID of the playlist to retrieve details from.
+
+        Returns:
+            dict: A dictionary containing all playlist information, including metadata and tracks.
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Attempting to retrieve details for playlist ID: {playlist_id}")
+
+        try:
+            self.spotify_connector.connect()
+
+            # Retrieve full playlist details
+            playlist_data = self.spotify_connector.client.playlist(playlist_id)
+
+            # Extracting key information
+            playlist_details = {
+                "name": playlist_data.get("name"),
+                "description": playlist_data.get("description"),
+                "owner": playlist_data.get("owner", {}).get("display_name"),
+                "followers": playlist_data.get("followers", {}).get("total"),
+                "public": playlist_data.get("public"),
+                "collaborative": playlist_data.get("collaborative"),
+                "total_tracks": playlist_data.get("tracks", {}).get("total"),
+                "tracks": [
+                    {
+                        "name": item["track"]["name"],
+                        "artists": [artist["name"] for artist in item["track"]["artists"]],
+                        "duration_ms": item["track"]["duration_ms"],
+                        "track_id": item["track"]["id"],
+                        "album": item["track"]["album"]["name"],
+                        "album_id": item["track"]["album"]["id"],
+                        "added_at": item["added_at"],
+                    }
+                    for item in playlist_data["tracks"]["items"] if item["track"] is not None
+                ]
+            }
+
+            self.logger.info(f"Retrieved details for playlist ID {playlist_id}")
+            return playlist_details
+
+        except Exception as e:
+            self.logger.error(f"Failed to retrieve details for playlist ID '{playlist_id}': {e}",
+                              exc_info=True)
+            raise ConnectionError(
+                f"Could not retrieve details for playlist ID '{playlist_id}': {e}")
+
     def search_track(self, query: str, limit: int = 10) -> List[Dict[str, str]]:
         """
         Searches for tracks based on a query string.

@@ -26,7 +26,8 @@ class SpotifyExecutor(ExecutorInterface):
                 "Performs Spotify-related operations. "
                 "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
                 "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
-                "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'."
+                "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'. "
+                "get_playlist"
             ),
             "parameters": {
                 "type": "object",
@@ -38,7 +39,7 @@ class SpotifyExecutor(ExecutorInterface):
                             "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
                             "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', "
                             "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks', "
-                            "'get_album_details', 'get_multiple_albums'."
+                            "'get_album_details', 'get_multiple_albums', 'get_playlist'."
                         ),
                     },
                     "query": {
@@ -128,11 +129,21 @@ class SpotifyExecutor(ExecutorInterface):
         offset = arguments.get("offset", 0)
         device_id = arguments.get("device_id")
         volume_percent = arguments.get("volume_percent")
+        playlist_id = arguments.get("playlist_id")
 
         try:
             if operation == "get_user_playlists":
                 playlists = self.spotify_service.get_user_playlists()
                 return json.dumps(playlists)
+
+            elif operation == "get_playlist":
+                if not playlist_id:
+                    return "Missing required parameter 'playlist_id' for 'get_playlist' operation."
+                try:
+                    playlist_data = self.spotify_service.get_playlist(playlist_id)
+                    return json.dumps(playlist_data)
+                except Exception as e:
+                    return f"Error retrieving playlist details for ID '{playlist_id}': {e}"
 
             elif operation == "search_track":
                 query = arguments.get("query")
