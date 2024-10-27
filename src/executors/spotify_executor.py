@@ -21,93 +21,96 @@ class SpotifyExecutor(ExecutorInterface):
             Dict[str, Any]: The executor definition including the available Spotify operations.
         """
         return {
-            "name": "spotify_operations",
-            "description": (
-                "Performs Spotify-related operations. "
-                "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
-                "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
-                "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'. "
-                "get_playlist"
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "description": (
-                            "The Spotify operation to perform: 'get_user_playlists', 'search_track', 'get_track_details', "
-                            "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
-                            "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', "
-                            "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks', "
-                            "'get_album_details', 'get_multiple_albums', 'get_playlist'."
-                        ),
+            "type": "function",
+            "function": {
+                "name": "spotify_operations",
+                "description": (
+                    "Performs Spotify-related operations. "
+                    "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
+                    "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
+                    "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'. "
+                    "get_playlist"
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "description": (
+                                "The Spotify operation to perform: 'get_user_playlists', 'search_track', 'get_track_details', "
+                                "'get_liked_songs', 'play_track', 'get_available_devices', 'pause_playback', "
+                                "'skip_to_next_track', 'get_current_playback_info', 'add_track_to_queue', "
+                                "'add_tracks_to_queue', 'set_volume','play_playlist', 'get_similar_tracks', "
+                                "'get_album_details', 'get_multiple_albums', 'get_playlist'."
+                            ),
+                        },
+                        "query": {
+                            "type": "string",
+                            "description": "The search query, required only for 'search_track'. Example: track name or artist name.",
+                        },
+                        "seed_track_id": {
+                            "type": "string",
+                            "description": (
+                                "The Spotify track ID to base recommendations on. Required for 'get_similar_tracks' operation."
+                            ),
+                        },
+                        "track_id": {
+                            "type": "string",
+                            "description": (
+                                "The Spotify track ID, required for 'get_track_details', 'play_track', and 'add_track_to_queue'."
+                            ),
+                        },
+                        "playlist_id": {
+                            "type": "string",
+                            "description": (
+                                "The Spotify playlist ID, required for 'play_playlist' operation. Example: Spotify URI or playlist ID."
+                            ),
+                        },
+                        "track_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "A list of Spotify track IDs to add to the queue. Required for 'add_tracks_to_queue'."
+                            ),
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "The number of results to return (optional, default is 10). Applicable to 'search_track', 'get_liked_songs', and 'get_similar_tracks'.",
+                        },
+                        "offset": {
+                            "type": "integer",
+                            "description": "The index of the first result to return, useful for pagination in 'get_liked_songs'.",
+                        },
+                        "device_id": {
+                            "type": "string",
+                            "description": (
+                                "The ID of the device to play or control playback on (optional). "
+                                "Applicable to 'play_track', 'pause_playback', 'skip_to_next_track', and 'add_track_to_queue'."
+                            ),
+                        },
+                        "volume_percent": {
+                            "type": "integer",
+                            "description": (
+                                "The target volume percentage (0 to 100) for 'set_volume' operation."
+                            ),
+                        },
+                        "album_id": {
+                            "type": "string",
+                            "description": (
+                                "The Spotify album ID, required for 'get_album_details' operation. Example: Spotify URI or album ID."
+                            ),
+                        },
+                        "album_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": (
+                                "A list of Spotify album IDs to fetch multiple albums. Required for 'get_multiple_albums'."
+                            ),
+                        },
                     },
-                    "query": {
-                        "type": "string",
-                        "description": "The search query, required only for 'search_track'. Example: track name or artist name.",
-                    },
-                    "seed_track_id": {
-                        "type": "string",
-                        "description": (
-                            "The Spotify track ID to base recommendations on. Required for 'get_similar_tracks' operation."
-                        ),
-                    },
-                    "track_id": {
-                        "type": "string",
-                        "description": (
-                            "The Spotify track ID, required for 'get_track_details', 'play_track', and 'add_track_to_queue'."
-                        ),
-                    },
-                    "playlist_id": {
-                        "type": "string",
-                        "description": (
-                            "The Spotify playlist ID, required for 'play_playlist' operation. Example: Spotify URI or playlist ID."
-                        ),
-                    },
-                    "track_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": (
-                            "A list of Spotify track IDs to add to the queue. Required for 'add_tracks_to_queue'."
-                        ),
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "The number of results to return (optional, default is 10). Applicable to 'search_track', 'get_liked_songs', and 'get_similar_tracks'.",
-                    },
-                    "offset": {
-                        "type": "integer",
-                        "description": "The index of the first result to return, useful for pagination in 'get_liked_songs'.",
-                    },
-                    "device_id": {
-                        "type": "string",
-                        "description": (
-                            "The ID of the device to play or control playback on (optional). "
-                            "Applicable to 'play_track', 'pause_playback', 'skip_to_next_track', and 'add_track_to_queue'."
-                        ),
-                    },
-                    "volume_percent": {
-                        "type": "integer",
-                        "description": (
-                            "The target volume percentage (0 to 100) for 'set_volume' operation."
-                        ),
-                    },
-                    "album_id": {
-                        "type": "string",
-                        "description": (
-                            "The Spotify album ID, required for 'get_album_details' operation. Example: Spotify URI or album ID."
-                        ),
-                    },
-                    "album_ids": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": (
-                            "A list of Spotify album IDs to fetch multiple albums. Required for 'get_multiple_albums'."
-                        ),
-                    },
+                    "required": ["operation"],
+                    "additionalProperties": False,
                 },
-                "required": ["operation"],
-                "additionalProperties": False,
             },
         }
 
@@ -198,13 +201,15 @@ class SpotifyExecutor(ExecutorInterface):
             elif operation == "add_track_to_queue":
                 if not track_id:
                     return "Missing required parameter 'track_id' for 'add_track_to_queue' operation."
-                queue_message = self.spotify_service.add_track_to_queue(track_id, device_id=device_id)
+                queue_message = self.spotify_service.add_track_to_queue(track_id,
+                                                                        device_id=device_id)
                 return queue_message
 
             elif operation == "add_tracks_to_queue":
                 if not track_ids:
                     return "Missing required parameter 'track_ids' for 'add_tracks_to_queue' operation."
-                queue_message = self.spotify_service.add_tracks_to_queue(track_ids, device_id=device_id)
+                queue_message = self.spotify_service.add_tracks_to_queue(track_ids,
+                                                                         device_id=device_id)
                 return queue_message
 
             elif operation == "set_volume":
@@ -212,7 +217,8 @@ class SpotifyExecutor(ExecutorInterface):
                 if volume_percent is None:
                     return "Missing required parameter 'volume_percent' for 'set_volume' operation."
                 try:
-                    volume_message = self.spotify_service.set_volume(volume_percent, device_id=device_id)
+                    volume_message = self.spotify_service.set_volume(volume_percent,
+                                                                     device_id=device_id)
                     return volume_message
 
                 except Exception as e:
@@ -268,4 +274,3 @@ class SpotifyExecutor(ExecutorInterface):
             "For requests involving paginated data, indicate how users can access additional results if necessary. "
             f"Always respond in the language '{user_language}'."
         )
-

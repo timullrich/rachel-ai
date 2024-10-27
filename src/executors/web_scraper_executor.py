@@ -8,18 +8,21 @@ class WebScraperExecutor(ExecutorInterface):
 
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
-            "name": "generic_web_scraping",
-            "description": "Scrapes the full HTML content from any web page.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "url": {
-                        "type": "string",
-                        "description": "The URL of the web page to scrape.",
-                    }
+            "type": "function",
+            "function": {
+                "name": "generic_web_scraping",
+                "description": "Scrapes the full HTML content from any web page.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "The URL of the web page to scrape.",
+                        }
+                    },
+                    "required": ["url"],
                 },
-                "required": ["url"],
-            },
+            }
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:

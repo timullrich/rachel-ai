@@ -15,30 +15,33 @@ class CryptoDataExecutor(ExecutorInterface):
 
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
-            "name": "crypto_data_operations",
-            "description": (
-                f"Fetches OHLC (Open, High, Low, Close) data for a specific cryptocurrency. "
-                f"Supports specifying a coin, reference currency (e.g., 'usd', 'eur'), and time range (in days)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "coin_id": {
-                        "type": "string",
-                        "description": "The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').",
+            "type": "function",
+            "function": {
+                "name": "crypto_data_operations",
+                "description": (
+                    f"Fetches OHLC (Open, High, Low, Close) data for a specific cryptocurrency. "
+                    f"Supports specifying a coin, reference currency (e.g., 'usd', 'eur'), and time range (in days)."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "coin_id": {
+                            "type": "string",
+                            "description": "The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').",
+                        },
+                        "vs_currency": {
+                            "type": "string",
+                            "description": "The reference currency (e.g., 'usd', 'eur').",
+                            "default": "usd",
+                        },
+                        "days": {
+                            "type": "integer",
+                            "description": "The number of days to fetch OHLC data for (e.g., 1, 7, 30).",
+                            "default": 7,
+                        },
                     },
-                    "vs_currency": {
-                        "type": "string",
-                        "description": "The reference currency (e.g., 'usd', 'eur').",
-                        "default": "usd",
-                    },
-                    "days": {
-                        "type": "integer",
-                        "description": "The number of days to fetch OHLC data for (e.g., 1, 7, 30).",
-                        "default": 7,
-                    },
+                    "required": ["coin_id"],
                 },
-                "required": ["coin_id"],
             },
         }
 

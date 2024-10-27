@@ -21,29 +21,32 @@ class WeatherExecutor(ExecutorInterface):
             Dict[str, Any]: The executor definition including the available operations.
         """
         return {
-            "name": "weather_operations",
-            "description": (
-                "Performs weather operations. "
-                "Supports 'get_weather' for current weather and 'get_forecast' for weather forecast."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "description": "The weather operation to perform: 'get_weather', 'get_forecast'",
+            "type": "function",
+            "function": {
+                "name": "weather_operations",
+                "description": (
+                    "Performs weather operations. "
+                    "Supports 'get_weather' for current weather and 'get_forecast' for weather forecast."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "description": "The weather operation to perform: 'get_weather', 'get_forecast'",
+                        },
+                        "city_name": {
+                            "type": "string",
+                            "description": "The name of the city to retrieve the weather data for.",
+                        },
+                        "days_ahead": {
+                            "type": "integer",
+                            "description": "Number of days ahead for the forecast (optional, default is 1).",
+                        },
                     },
-                    "city_name": {
-                        "type": "string",
-                        "description": "The name of the city to retrieve the weather data for.",
-                    },
-                    "days_ahead": {
-                        "type": "integer",
-                        "description": "Number of days ahead for the forecast (optional, default is 1).",
-                    },
+                    "required": ["operation", "city_name"],
+                    "additionalProperties": False,
                 },
-                "required": ["operation", "city_name"],
-                "additionalProperties": False,
             },
         }
 

@@ -12,17 +12,20 @@ class CommandExecutor(ExecutorInterface):
 
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
-            "name": "execute_command",
-            "description": f"Executes a system command on the {self.platform} shell!",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "command": {
-                        "type": "string",
-                        "description": "The shell command to be executed",
-                    }
+            "type": "function",
+            "function": {
+                "name": "execute_command",
+                "description": f"Executes a system command on the {self.platform} shell!",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "The shell command to be executed",
+                        }
+                    },
+                    "required": ["command"],
                 },
-                "required": ["command"],
             },
         }
 

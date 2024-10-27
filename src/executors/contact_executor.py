@@ -8,26 +8,29 @@ class ContactExecutor(ExecutorInterface):
 
     def get_executor_definition(self) -> Dict[str, Any]:
         return {
-            "name": "contact_operations",
-            "description": (
-                f"Performs contact listing and search operations. "
-                f"Supports 'list' operation to retrieve all contacts and "
-                f"'search' to filter contacts by name or email."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "operation": {
-                        "type": "string",
-                        "description": "The contact operation to perform: 'list' or 'search'",
+            "type": "function",
+            "function": {
+                "name": "contact_operations",
+                "description": (
+                    f"Performs contact listing and search operations. "
+                    f"Supports 'list' operation to retrieve all contacts and "
+                    f"'search' to filter contacts by name or email."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "description": "The contact operation to perform: 'list' or 'search'",
+                        },
+                        "search_string": {
+                            "type": "string",
+                            "description": "The string to search for in contacts' names or emails",
+                            "default": "",
+                        },
                     },
-                    "search_string": {
-                        "type": "string",
-                        "description": "The string to search for in contacts' names or emails",
-                        "default": "",
-                    },
+                    "required": ["operation"],
                 },
-                "required": ["operation"],
             },
         }
 
