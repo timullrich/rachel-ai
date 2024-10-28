@@ -83,9 +83,6 @@ if __name__ == "__main__":
 
     username: str = os.getenv("USERNAME")
 
-    # Anwendungspezifisches icloud passwort (rachel-ai)
-    # [REDACTED]
-
     # Configure logging
     logger: logging.Logger = setup_logging(log_level)
 
