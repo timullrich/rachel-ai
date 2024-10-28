@@ -107,4 +107,3 @@ class WeatherExecutor(ExecutorInterface):
             "For multi-day forecasts, summarize key information instead of providing full daily reports unless the user specifically asks. "
             f"Always respond in the language '{user_language}'."
         )
-

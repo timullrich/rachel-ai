@@ -56,7 +56,5 @@ class WebScraperService:
                 return content_text
         else:
             raise Exception(
-                f"Failed to retrieve content from {url}, status code: {response.status_code}")
-
-
-
+                f"Failed to retrieve content from {url}, status code: {response.status_code}"
+            )

@@ -44,14 +44,18 @@ frame_size = int(sample_rate * frame_duration_ms / 1000)
 conversation_history = []
 
 # Porcupine wake-word initialization
-keyword_path = os.path.join(script_dir,
-                            f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn")
-model_path = os.path.join(script_dir, "../../resources/porcupine/porcupine_params_de.pv")
+keyword_path = os.path.join(
+    script_dir, f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn"
+)
+model_path = os.path.join(
+    script_dir, "../../resources/porcupine/porcupine_params_de.pv"
+)
 
 stop_flag = threading.Event()  # Flag to stop processes when wake-word is detected
 
 # Rotating spinner for visual feedback
-spinner = itertools.cycle(['-', '\\', '|', '/'])
+spinner = itertools.cycle(["-", "\\", "|", "/"])
+
 
 def execute_command(command):
     try:
@@ -62,6 +66,7 @@ def execute_command(command):
             return result.stderr.strip()
     except Exception as e:
         return f"Error executing command: {str(e)}"
+
 
 def is_speech(frame, sample_rate):
     """Check if the audio frame contains speech using webrtcvad."""
@@ -78,7 +83,7 @@ def record_audio(sample_rate):
     max_silence_duration = 1  # Stop recording after 1 second of silence
     recording_started = False  # Track if recording has started after speech detection
 
-    stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype='int16')
+    stream = sd.InputStream(samplerate=sample_rate, channels=1, dtype="int16")
     stream.start()
 
     start_time = time.time()
@@ -91,7 +96,7 @@ def record_audio(sample_rate):
             # Display a rotating spinner
             sys.stdout.write(next(spinner))  # Show the next spinner character
             sys.stdout.flush()
-            sys.stdout.write('\b')  # Erase the last character printed
+            sys.stdout.write("\b")  # Erase the last character printed
 
             # Check if speech is detected
             if is_speech(audio_frame, sample_rate):
@@ -104,13 +109,17 @@ def record_audio(sample_rate):
             # Check if 5 seconds have passed without starting the recording
             if not recording_started and (time.time() - start_time) > 4:
                 print("No speech detected for 4 seconds, exiting...")
-                play_sound(os.path.join(script_dir, "../../resources/sounds/standby.wav"))
+                play_sound(
+                    os.path.join(script_dir, "../../resources/sounds/standby.wav")
+                )
                 sys.exit()  # Exit the entire script
 
             else:
                 if recording_started:
                     if silence_duration < max_silence_duration:
-                        silence_duration += frame_duration_ms / 1000  # Count silence only after speech starts
+                        silence_duration += (
+                            frame_duration_ms / 1000
+                        )  # Count silence only after speech starts
 
             # If too much silence is detected after recording started, stop recording
             if recording_started and silence_duration > max_silence_duration:
@@ -136,11 +145,10 @@ def save_audio_to_wav(audio, sample_rate, filename=output_file):
 
 def transcribe_audio(audio_file_path):
     """Transcribe the audio file using OpenAI's Whisper API."""
-    with open(audio_file_path, 'rb') as audio_file:
+    with open(audio_file_path, "rb") as audio_file:
         print("Sending audio to OpenAI for transcription...")
         transcription = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file
+            model="whisper-1", file=audio_file
         )
         return transcription.text
 
@@ -159,10 +167,7 @@ def process_speech(client, text, chunk_size=1024):
         if stop_flag.is_set():
             return
         with client.audio.speech.with_streaming_response.create(
-                model="tts-1",
-                voice="nova",
-                input=text,
-                response_format="pcm"
+            model="tts-1", voice="nova", input=text, response_format="pcm"
         ) as response_audio:
             for audio_chunk in response_audio.iter_bytes(chunk_size):
                 if stop_flag.is_set():
@@ -174,8 +179,13 @@ def process_speech(client, text, chunk_size=1024):
 
 def play_audio(samplerate=24000, channels=1):
     """Continuously play audio from the queue."""
-    stream_audio = sd.OutputStream(samplerate=samplerate, channels=channels, dtype='int16',
-                                   blocksize=4096, latency=0.5)
+    stream_audio = sd.OutputStream(
+        samplerate=samplerate,
+        channels=channels,
+        dtype="int16",
+        blocksize=4096,
+        latency=0.5,
+    )
     stream_audio.start()
 
     while True:
@@ -206,10 +216,12 @@ def play_audio(samplerate=24000, channels=1):
 
 def collect_until_sentence_end(text_buffer):
     """Collect text until a sentence end is detected (., !, ?)."""
-    match = re.search(r'[.!?]', text_buffer)  # Look for sentence-ending punctuation
+    match = re.search(r"[.!?]", text_buffer)  # Look for sentence-ending punctuation
     if match:
-        return text_buffer[:match.end()], text_buffer[
-                                          match.end():]  # Return the sentence and the remaining text
+        return (
+            text_buffer[: match.end()],
+            text_buffer[match.end() :],
+        )  # Return the sentence and the remaining text
     return "", text_buffer
 
 
@@ -226,10 +238,10 @@ def play_sound(file_path):
         return
     try:
         subprocess.run(
-            ['ffplay', '-nodisp', '-autoexit', file_path],
+            ["ffplay", "-nodisp", "-autoexit", file_path],
             stdout=subprocess.DEVNULL,  # Verbirgt Standardausgabe
             stderr=subprocess.DEVNULL,  # Verbirgt Fehlerausgabe
-            check=True
+            check=True,
         )
         sd.wait()
     except subprocess.CalledProcessError as e:
@@ -252,16 +264,18 @@ def listen_for_wakeword():
     porcupine = None
     try:
         porcupine = pvporcupine.create(
-            access_key=access_key,
-            keyword_paths=[keyword_path],
-            model_path=model_path
+            access_key=access_key, keyword_paths=[keyword_path], model_path=model_path
         )
 
-        with sd.InputStream(samplerate=porcupine.sample_rate, channels=1, callback=audio_callback, blocksize=porcupine.frame_length):
+        with sd.InputStream(
+            samplerate=porcupine.sample_rate,
+            channels=1,
+            callback=audio_callback,
+            blocksize=porcupine.frame_length,
+        ):
             print("Listening for 'Hey Rachel'...")
             while not stop_flag.is_set():
                 sd.sleep(1000)
-
 
     finally:
         if porcupine:
@@ -275,13 +289,10 @@ def speak(text):
     audio_buffer = []
 
     # Open a sounddevice stream to continuously play audio
-    with sd.OutputStream(samplerate=samplerate, channels=1, dtype='int16') as stream:
+    with sd.OutputStream(samplerate=samplerate, channels=1, dtype="int16") as stream:
 
         with client.audio.speech.with_streaming_response.create(
-                model="tts-1",
-                voice="nova",
-                input=text,
-                response_format="pcm"
+            model="tts-1", voice="nova", input=text, response_format="pcm"
         ) as response:
             for chunk in response.iter_bytes(chunk_size):
                 # Convert the chunk to a NumPy array
@@ -309,7 +320,9 @@ def speak(text):
         sd.sleep(500)
 
 
-def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chunk_size=1024):
+def stream_chat_with_gpt_and_speak(
+    client, user_input, conversation_history, chunk_size=1024
+):
     """Stream GPT responses and handle function calls like executing system commands."""
     assistant_reply = ""
     text_buffer = ""
@@ -340,14 +353,14 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
                     "properties": {
                         "command": {
                             "type": "string",
-                            "description": "The shell command to be executed"
+                            "description": "The shell command to be executed",
                         }
                     },
-                    "required": ["command"]
-                }
+                    "required": ["command"],
+                },
             }
         ],
-        function_call="auto"  # GPT will automatically decide if a function should be called
+        function_call="auto",  # GPT will automatically decide if a function should be called
     )
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -361,7 +374,7 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
 
                 choice = chunk.choices[0].delta
 
-                if hasattr(choice, 'content') and choice.content is not None:
+                if hasattr(choice, "content") and choice.content is not None:
                     content = chunk.choices[0].delta.content
                     format_and_print_content(content)
 
@@ -370,59 +383,72 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
 
                     sentence, remaining_text = collect_until_sentence_end(text_buffer)
                     if sentence and not stop_flag.is_set():
-                        future = executor.submit(process_speech, client, sentence, chunk_size)
-                        text_buffer = remaining_text  # Resttext für nächste Runde behalten
+                        future = executor.submit(
+                            process_speech, client, sentence, chunk_size
+                        )
+                        text_buffer = (
+                            remaining_text  # Resttext für nächste Runde behalten
+                        )
 
                         # Prüfe, ob GPT eine Funktion aufrufen möchte
-                if hasattr(choice, 'function_call') and choice.function_call is not None:
-                            function_call = choice.function_call
+                if (
+                    hasattr(choice, "function_call")
+                    and choice.function_call is not None
+                ):
+                    function_call = choice.function_call
 
-                            # Sammle den Namen der Funktion (nur einmal)
-                            if function_call_name is None and hasattr(function_call, 'name'):
-                                function_call_name = function_call.name
+                    # Sammle den Namen der Funktion (nur einmal)
+                    if function_call_name is None and hasattr(function_call, "name"):
+                        function_call_name = function_call.name
 
-                            # Sammle die Arguments stückweise
-                            if hasattr(function_call,
-                                       'arguments') and function_call.arguments is not None:
-                                function_call_arguments += function_call.arguments
+                    # Sammle die Arguments stückweise
+                    if (
+                        hasattr(function_call, "arguments")
+                        and function_call.arguments is not None
+                    ):
+                        function_call_arguments += function_call.arguments
 
-                            # Prüfe, ob die Arguments vollständig sind (einfacher Ansatz)
-                            if function_call_arguments.endswith('}'):
-                                function_call_detected = True  # Setze das Flag, um die Funktion nur einmal auszuführen
+                    # Prüfe, ob die Arguments vollständig sind (einfacher Ansatz)
+                    if function_call_arguments.endswith("}"):
+                        function_call_detected = True  # Setze das Flag, um die Funktion nur einmal auszuführen
 
-                                # Jetzt können wir die gesammelten Arguments parsen
-                                try:
-                                    # Entferne mögliche zusätzliche Leerzeichen
-                                    arguments_str = function_call_arguments.strip()
-                                    # Parsen der Arguments aus dem String
-                                    import json
-                                    arguments = json.loads(arguments_str)
-                                    command = arguments.get('command')
-                                    print('command')
-                                    print(command)
-                                    if command:
-                                        print(f"Executing command: {command}")
-                                        command_output = execute_command(command)
-                                        print(f"Command output: {command_output}")
+                        # Jetzt können wir die gesammelten Arguments parsen
+                        try:
+                            # Entferne mögliche zusätzliche Leerzeichen
+                            arguments_str = function_call_arguments.strip()
+                            # Parsen der Arguments aus dem String
+                            import json
 
-                                        # Sende die Befehlsausgabe zur weiteren Verarbeitung an ChatGPT
-                                        conversation_history.append(
-                                            {"role": "function", "name": function_call_name,
-                                             "content": command_output})
+                            arguments = json.loads(arguments_str)
+                            command = arguments.get("command")
+                            print("command")
+                            print(command)
+                            if command:
+                                print(f"Executing command: {command}")
+                                command_output = execute_command(command)
+                                print(f"Command output: {command_output}")
 
-                                        # Hole die finale Antwort von ChatGPT basierend auf der Befehlsausgabe
-                                        reply = client.chat.completions.create(
-                                            model="gpt-4o-mini",
-                                            messages=conversation_history
-                                        )
-                                        assistant_reply = reply.choices[0].message.content
-                                        print(assistant_reply)
-                                        return assistant_reply
-                                except Exception as e:
-                                    print(f"Error parsing function arguments: {e}")
+                                # Sende die Befehlsausgabe zur weiteren Verarbeitung an ChatGPT
+                                conversation_history.append(
+                                    {
+                                        "role": "function",
+                                        "name": function_call_name,
+                                        "content": command_output,
+                                    }
+                                )
+
+                                # Hole die finale Antwort von ChatGPT basierend auf der Befehlsausgabe
+                                reply = client.chat.completions.create(
+                                    model="gpt-4o-mini", messages=conversation_history
+                                )
+                                assistant_reply = reply.choices[0].message.content
+                                print(assistant_reply)
+                                return assistant_reply
+                        except Exception as e:
+                            print(f"Error parsing function arguments: {e}")
 
             if stop_flag.is_set():
-                    print("Skipping future.result() due to stop flag")
+                print("Skipping future.result() due to stop flag")
             elif future:
                 future.result()
 
@@ -449,15 +475,16 @@ def stream_chat_with_gpt_and_speak(client, user_input, conversation_history, chu
     # Add final assistant reply to conversation history
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
-    print('\n')
+    print("\n")
 
     return assistant_reply
 
 
-
 if __name__ == "__main__":
 
-    conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
+    conversation_history.insert(
+        0, {"role": "system", "content": "You are a helpful assistant."}
+    )
 
     while True:
         # Dynamically record audio until silence is detected

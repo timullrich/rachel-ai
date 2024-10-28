@@ -110,15 +110,15 @@ class SpotifyExecutor(ExecutorInterface):
                         },
                         "playlist_name": {
                             "type": "string",
-                            "description": "The name for the new playlist, required for 'create_playlist'."
+                            "description": "The name for the new playlist, required for 'create_playlist'.",
                         },
                         "playlist_description": {
                             "type": "string",
-                            "description": "A description for the playlist, optional for 'create_playlist'."
+                            "description": "A description for the playlist, optional for 'create_playlist'.",
                         },
                         "public": {
                             "type": "boolean",
-                            "description": "Whether the playlist should be public or private. Default is private."
+                            "description": "Whether the playlist should be public or private. Default is private.",
                         },
                     },
                     "required": ["operation"],
@@ -162,7 +162,9 @@ class SpotifyExecutor(ExecutorInterface):
                     playlist_data = self.spotify_service.get_playlist(playlist_id)
                     return json.dumps(playlist_data)
                 except Exception as e:
-                    return f"Error retrieving playlist details for ID '{playlist_id}': {e}"
+                    return (
+                        f"Error retrieving playlist details for ID '{playlist_id}': {e}"
+                    )
 
             elif operation == "search_track":
                 query = arguments.get("query")
@@ -178,13 +180,17 @@ class SpotifyExecutor(ExecutorInterface):
                 return json.dumps(track_details)
 
             elif operation == "get_liked_songs":
-                liked_songs = self.spotify_service.get_liked_songs(limit=limit, offset=offset)
+                liked_songs = self.spotify_service.get_liked_songs(
+                    limit=limit, offset=offset
+                )
                 return json.dumps(liked_songs)
 
             elif operation == "play_track":
                 if not track_id:
                     return "Missing required parameter 'track_id' for 'play_track' operation."
-                playback_message = self.spotify_service.play_track(track_id, device_id=device_id)
+                playback_message = self.spotify_service.play_track(
+                    track_id, device_id=device_id
+                )
                 return playback_message
 
             elif operation == "play_playlist":
@@ -192,8 +198,9 @@ class SpotifyExecutor(ExecutorInterface):
                 if not playlist_id:
                     return "Missing required parameter 'playlist_id' for 'play_playlist' operation."
                 try:
-                    playlist_message = self.spotify_service.play_playlist(playlist_id,
-                                                                          device_id=device_id)
+                    playlist_message = self.spotify_service.play_playlist(
+                        playlist_id, device_id=device_id
+                    )
                     return playlist_message
                 except Exception as e:
                     return f"Error playing playlist with ID '{playlist_id}': {e}"
@@ -207,25 +214,33 @@ class SpotifyExecutor(ExecutorInterface):
                 return pause_message
 
             elif operation == "skip_to_next_track":
-                skip_message = self.spotify_service.skip_to_next_track(device_id=device_id)
+                skip_message = self.spotify_service.skip_to_next_track(
+                    device_id=device_id
+                )
                 return skip_message
 
             elif operation == "get_current_playback_info":
                 playback_info = self.spotify_service.get_current_playback_info()
-                return json.dumps(playback_info) if playback_info else "No active playback found."
+                return (
+                    json.dumps(playback_info)
+                    if playback_info
+                    else "No active playback found."
+                )
 
             elif operation == "add_track_to_queue":
                 if not track_id:
                     return "Missing required parameter 'track_id' for 'add_track_to_queue' operation."
-                queue_message = self.spotify_service.add_track_to_queue(track_id,
-                                                                        device_id=device_id)
+                queue_message = self.spotify_service.add_track_to_queue(
+                    track_id, device_id=device_id
+                )
                 return queue_message
 
             elif operation == "add_tracks_to_queue":
                 if not track_ids:
                     return "Missing required parameter 'track_ids' for 'add_tracks_to_queue' operation."
-                queue_message = self.spotify_service.add_tracks_to_queue(track_ids,
-                                                                         device_id=device_id)
+                queue_message = self.spotify_service.add_tracks_to_queue(
+                    track_ids, device_id=device_id
+                )
                 return queue_message
 
             elif operation == "set_volume":
@@ -233,8 +248,9 @@ class SpotifyExecutor(ExecutorInterface):
                 if volume_percent is None:
                     return "Missing required parameter 'volume_percent' for 'set_volume' operation."
                 try:
-                    volume_message = self.spotify_service.set_volume(volume_percent,
-                                                                     device_id=device_id)
+                    volume_message = self.spotify_service.set_volume(
+                        volume_percent, device_id=device_id
+                    )
                     return volume_message
 
                 except Exception as e:
@@ -243,7 +259,9 @@ class SpotifyExecutor(ExecutorInterface):
             elif operation == "get_similar_tracks":
                 if not seed_track_id:
                     return "Missing required parameter 'seed_track_id' for 'get_similar_tracks' operation."
-                similar_tracks = self.spotify_service.get_similar_tracks(seed_track_id, limit=limit)
+                similar_tracks = self.spotify_service.get_similar_tracks(
+                    seed_track_id, limit=limit
+                )
                 return json.dumps(similar_tracks)
 
             elif operation == "get_album_details":
@@ -261,7 +279,9 @@ class SpotifyExecutor(ExecutorInterface):
                 if not album_ids:
                     return "Missing required parameter 'album_ids' for 'get_multiple_albums' operation."
                 try:
-                    multiple_albums = self.spotify_service.get_multiple_albums(album_ids)
+                    multiple_albums = self.spotify_service.get_multiple_albums(
+                        album_ids
+                    )
                     return json.dumps(multiple_albums)
                 except Exception as e:
                     return f"Error fetching multiple albums: {e}"
@@ -275,7 +295,7 @@ class SpotifyExecutor(ExecutorInterface):
                         name=playlist_name,
                         description=playlist_description,
                         public=public,
-                        track_ids=track_ids
+                        track_ids=track_ids,
                     )
                     return json.dumps(playlist)
                 except Exception as e:
@@ -287,12 +307,13 @@ class SpotifyExecutor(ExecutorInterface):
                     return "Missing required parameters 'playlist_id' and/or 'tracks' for 'add_tracks_to_playlist' operation."
                 try:
                     message = self.spotify_service.add_tracks_to_playlist(
-                        playlist_id=playlist_id,
-                        track_ids=track_ids
+                        playlist_id=playlist_id, track_ids=track_ids
                     )
                     return message
                 except Exception as e:
-                    return f"Error adding tracks to playlist with ID '{playlist_id}': {e}"
+                    return (
+                        f"Error adding tracks to playlist with ID '{playlist_id}': {e}"
+                    )
 
             else:
                 return f"Invalid operation: {operation}"

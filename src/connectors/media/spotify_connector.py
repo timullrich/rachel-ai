@@ -10,7 +10,9 @@ class SpotifyConnector(ConnectorInterface):
     This class manages the authentication process and initializes the Spotify API client.
     """
 
-    def __init__(self, client_id: str, client_secret: str, redirect_uri: str, scope: str):
+    def __init__(
+        self, client_id: str, client_secret: str, redirect_uri: str, scope: str
+    ):
         """
         Initializes the connector with Spotify API credentials.
 
@@ -35,7 +37,7 @@ class SpotifyConnector(ConnectorInterface):
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 redirect_uri=self.redirect_uri,
-                scope=self.scope
+                scope=self.scope,
             )
             self.client = spotipy.Spotify(auth_manager=auth_manager)
         except Exception as e:

@@ -91,9 +91,7 @@ class ChatService:
             messages=conversation_history,
             stream=True,
             parallel_tool_calls=False,
-            tools=[
-                executor.get_executor_definition() for executor in self.executors
-            ],
+            tools=[executor.get_executor_definition() for executor in self.executors],
         )
 
         # Split the stream for inspection
@@ -109,7 +107,9 @@ class ChatService:
 
         # Check if it's a function call
         if hasattr(choice, "tool_calls") and choice.tool_calls is not None:
-            self.logger.info(f"Function call detected: {choice.tool_calls[0].function.name}")
+            self.logger.info(
+                f"Function call detected: {choice.tool_calls[0].function.name}"
+            )
 
             for chunk in splitter.get():
                 choice = chunk.choices[0].delta
@@ -121,12 +121,14 @@ class ChatService:
                     and choice.tool_calls[0].function is not None
                 ):
                     if function_call_name is None:
-                        function_call_name = (
-                            choice.tool_calls[0].function.name
-                        )  # Store the function name
+                        function_call_name = choice.tool_calls[
+                            0
+                        ].function.name  # Store the function name
                     if choice.tool_calls[0].function.arguments:
                         # Collect arguments
-                        function_call_arguments += choice.tool_calls[0].function.arguments
+                        function_call_arguments += choice.tool_calls[
+                            0
+                        ].function.arguments
 
             # Process the function call if detected
             if function_call_name:
@@ -142,7 +144,8 @@ class ChatService:
                     (
                         e
                         for e in self.executors
-                        if e.get_executor_definition()["function"]["name"] == function_call_name
+                        if e.get_executor_definition()["function"]["name"]
+                        == function_call_name
                     ),
                     None,
                 )

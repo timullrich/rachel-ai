@@ -38,7 +38,8 @@ class SpotifyService:
             raise ValueError("Volume must be between 0 and 100.")
 
         self.logger.info(
-            f"Setting volume to {volume_percent}% on device {device_id or 'active device'}.")
+            f"Setting volume to {volume_percent}% on device {device_id or 'active device'}."
+        )
 
         try:
             self.spotify_connector.connect()
@@ -48,7 +49,9 @@ class SpotifyService:
             return f"Volume set to {volume_percent}% on device {device_id or 'active device'}."
 
         except Exception as e:
-            self.logger.error(f"Failed to set volume to {volume_percent}%.", exc_info=True)
+            self.logger.error(
+                f"Failed to set volume to {volume_percent}%.", exc_info=True
+            )
             raise ConnectionError(f"Could not set volume to {volume_percent}%: {e}")
 
     def get_available_devices(self) -> List[Dict[str, str]]:
@@ -71,7 +74,7 @@ class SpotifyService:
                     "id": device["id"],
                     "name": device["name"],
                     "type": device["type"],
-                    "is_active": device["is_active"]
+                    "is_active": device["is_active"],
                 }
                 for device in devices["devices"]
             ]
@@ -96,7 +99,9 @@ class SpotifyService:
         Raises:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
-        self.logger.info(f"Attempting to pause playback on device {device_id or 'active device'}.")
+        self.logger.info(
+            f"Attempting to pause playback on device {device_id or 'active device'}."
+        )
 
         try:
             self.spotify_connector.connect()
@@ -123,14 +128,17 @@ class SpotifyService:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
         self.logger.info(
-            f"Attempting to skip to the next track on device {device_id or 'active device'}.")
+            f"Attempting to skip to the next track on device {device_id or 'active device'}."
+        )
 
         try:
             self.spotify_connector.connect()
             self.spotify_connector.client.next_track(device_id=device_id)
 
             self.logger.info("Skipped to the next track.")
-            return f"Skipped to the next track on device {device_id or 'active device'}."
+            return (
+                f"Skipped to the next track on device {device_id or 'active device'}."
+            )
 
         except Exception as e:
             self.logger.error("Failed to skip to the next track.", exc_info=True)
@@ -159,7 +167,9 @@ class SpotifyService:
                 return None
 
         except Exception as e:
-            self.logger.error("Failed to fetch current playback information.", exc_info=True)
+            self.logger.error(
+                "Failed to fetch current playback information.", exc_info=True
+            )
             raise ConnectionError("Could not fetch current playback information.")
 
     def get_liked_songs(self, limit: int = 20, offset: int = 0) -> list:
@@ -180,16 +190,19 @@ class SpotifyService:
 
         try:
             self.spotify_connector.connect()
-            results = self.spotify_connector.client.current_user_saved_tracks(limit=limit,
-                                                                              offset=offset)
+            results = self.spotify_connector.client.current_user_saved_tracks(
+                limit=limit, offset=offset
+            )
 
             liked_songs = [
                 {
                     "track_name": item["track"]["name"],
-                    "artist": ", ".join(artist["name"] for artist in item["track"]["artists"]),
+                    "artist": ", ".join(
+                        artist["name"] for artist in item["track"]["artists"]
+                    ),
                     "album": item["track"]["album"]["name"],
                     "added_at": item["added_at"],
-                    "track_id": item["track"]["id"]
+                    "track_id": item["track"]["id"],
                 }
                 for item in results["items"]
             ]
@@ -221,7 +234,7 @@ class SpotifyService:
                     "name": playlist["name"],
                     "total_tracks": playlist["tracks"]["total"],
                     "id": playlist["id"],
-                    "owner": playlist["owner"]["display_name"]
+                    "owner": playlist["owner"]["display_name"],
                 }
                 for playlist in playlists["items"]
             ]
@@ -245,7 +258,9 @@ class SpotifyService:
         Raises:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
-        self.logger.info(f"Attempting to retrieve details for playlist ID: {playlist_id}")
+        self.logger.info(
+            f"Attempting to retrieve details for playlist ID: {playlist_id}"
+        )
 
         try:
             self.spotify_connector.connect()
@@ -265,25 +280,31 @@ class SpotifyService:
                 "tracks": [
                     {
                         "name": item["track"]["name"],
-                        "artists": [artist["name"] for artist in item["track"]["artists"]],
+                        "artists": [
+                            artist["name"] for artist in item["track"]["artists"]
+                        ],
                         "duration_ms": item["track"]["duration_ms"],
                         "track_id": item["track"]["id"],
                         "album": item["track"]["album"]["name"],
                         "album_id": item["track"]["album"]["id"],
                         "added_at": item["added_at"],
                     }
-                    for item in playlist_data["tracks"]["items"] if item["track"] is not None
-                ]
+                    for item in playlist_data["tracks"]["items"]
+                    if item["track"] is not None
+                ],
             }
 
             self.logger.info(f"Retrieved details for playlist ID {playlist_id}")
             return playlist_details
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve details for playlist ID '{playlist_id}': {e}",
-                              exc_info=True)
+            self.logger.error(
+                f"Failed to retrieve details for playlist ID '{playlist_id}': {e}",
+                exc_info=True,
+            )
             raise ConnectionError(
-                f"Could not retrieve details for playlist ID '{playlist_id}': {e}")
+                f"Could not retrieve details for playlist ID '{playlist_id}': {e}"
+            )
 
     def search_track(self, query: str, limit: int = 10) -> List[Dict[str, str]]:
         """
@@ -303,16 +324,22 @@ class SpotifyService:
 
         try:
             self.spotify_connector.connect()
-            results = self.spotify_connector.client.search(q=query, type="track", limit=limit)
+            results = self.spotify_connector.client.search(
+                q=query, type="track", limit=limit
+            )
 
-            self.logger.info(f"Found {len(results['tracks']['items'])} tracks for query '{query}'.")
+            self.logger.info(
+                f"Found {len(results['tracks']['items'])} tracks for query '{query}'."
+            )
             return results
 
         except Exception as e:
             self.logger.error("Failed to search tracks.", exc_info=True)
             raise ConnectionError(f"Could not search tracks: {e}")
 
-    def get_similar_tracks(self, seed_track_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_similar_tracks(
+        self, seed_track_id: str, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """
         Recommends similar tracks based on a provided track ID.
 
@@ -332,15 +359,16 @@ class SpotifyService:
             self.spotify_connector.connect()
 
             # Call Spotify's recommendations endpoint
-            results = self.spotify_connector.client.recommendations(seed_tracks=[seed_track_id],
-                                                                    limit=limit)
+            results = self.spotify_connector.client.recommendations(
+                seed_tracks=[seed_track_id], limit=limit
+            )
 
             similar_tracks = [
                 {
                     "name": track["name"],
                     "artist": ", ".join(artist["name"] for artist in track["artists"]),
                     "album": track["album"]["name"],
-                    "track_id": track["id"]
+                    "track_id": track["id"],
                 }
                 for track in results["tracks"]
             ]
@@ -349,10 +377,13 @@ class SpotifyService:
             return similar_tracks
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve similar tracks for track ID '{seed_track_id}'.",
-                              exc_info=True)
+            self.logger.error(
+                f"Failed to retrieve similar tracks for track ID '{seed_track_id}'.",
+                exc_info=True,
+            )
             raise ConnectionError(
-                f"Could not fetch similar tracks for track ID '{seed_track_id}': {e}")
+                f"Could not fetch similar tracks for track ID '{seed_track_id}': {e}"
+            )
 
     def get_track_details(self, track_id: str) -> Optional[Dict[str, str]]:
         """
@@ -377,7 +408,8 @@ class SpotifyService:
             track["audio_features"] = audio_features
 
             self.logger.info(
-                f"Successfully retrieved track details, including BPM, for {track['name']}")
+                f"Successfully retrieved track details, including BPM, for {track['name']}"
+            )
             return dict(track)
 
         except Exception as e:
@@ -405,15 +437,20 @@ class SpotifyService:
             self.spotify_connector.connect()
 
             # Start playback for the specified track
-            self.spotify_connector.client.start_playback(device_id=device_id,
-                                                         uris=[f"spotify:track:{track_id}"])
+            self.spotify_connector.client.start_playback(
+                device_id=device_id, uris=[f"spotify:track:{track_id}"]
+            )
 
             self.logger.info(f"Playback started for track ID {track_id}")
             return f"Playing track ID {track_id} on device {device_id or 'default'}."
 
         except Exception as e:
-            self.logger.error(f"Failed to play track ID '{track_id}': {e}", exc_info=True)
-            raise ConnectionError(f"Could not start playback for track ID '{track_id}': {e}")
+            self.logger.error(
+                f"Failed to play track ID '{track_id}': {e}", exc_info=True
+            )
+            raise ConnectionError(
+                f"Could not start playback for track ID '{track_id}': {e}"
+            )
 
     def add_tracks_to_queue(self, track_ids: List[str], device_id: str = None) -> str:
         """
@@ -430,14 +467,16 @@ class SpotifyService:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
         self.logger.info(
-            f"Attempting to add {len(track_ids)} tracks to the queue on device {device_id or 'active device'}.")
+            f"Attempting to add {len(track_ids)} tracks to the queue on device {device_id or 'active device'}."
+        )
 
         try:
             self.spotify_connector.connect()
 
             for track_id in track_ids:
-                self.spotify_connector.client.add_to_queue(uri=f"spotify:track:{track_id}",
-                                                           device_id=device_id)
+                self.spotify_connector.client.add_to_queue(
+                    uri=f"spotify:track:{track_id}", device_id=device_id
+                )
                 self.logger.info(f"Track {track_id} added to the queue.")
 
             return f"{len(track_ids)} tracks added to the queue on device {device_id or 'active device'}."
@@ -467,15 +506,22 @@ class SpotifyService:
             self.spotify_connector.connect()
 
             # Start playback for the specified playlist
-            self.spotify_connector.client.start_playback(device_id=device_id,
-                                                         context_uri=f"spotify:playlist:{playlist_id}")
+            self.spotify_connector.client.start_playback(
+                device_id=device_id, context_uri=f"spotify:playlist:{playlist_id}"
+            )
 
             self.logger.info(f"Playback started for playlist ID {playlist_id}")
-            return f"Playing playlist ID {playlist_id} on device {device_id or 'default'}."
+            return (
+                f"Playing playlist ID {playlist_id} on device {device_id or 'default'}."
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to play playlist ID '{playlist_id}': {e}", exc_info=True)
-            raise ConnectionError(f"Could not start playback for playlist ID '{playlist_id}': {e}")
+            self.logger.error(
+                f"Failed to play playlist ID '{playlist_id}': {e}", exc_info=True
+            )
+            raise ConnectionError(
+                f"Could not start playback for playlist ID '{playlist_id}': {e}"
+            )
 
     def get_album_details(self, album_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -496,13 +542,18 @@ class SpotifyService:
             self.spotify_connector.connect()
             album = self.spotify_connector.client.album(album_id)
 
-            self.logger.info(f"Successfully retrieved details for album '{album['name']}'.")
+            self.logger.info(
+                f"Successfully retrieved details for album '{album['name']}'."
+            )
             return dict(album)
 
         except Exception as e:
-            self.logger.error(f"Failed to retrieve album details for ID '{album_id}'.",
-                              exc_info=True)
-            raise ConnectionError(f"Could not fetch album details for ID '{album_id}': {e}")
+            self.logger.error(
+                f"Failed to retrieve album details for ID '{album_id}'.", exc_info=True
+            )
+            raise ConnectionError(
+                f"Could not fetch album details for ID '{album_id}': {e}"
+            )
 
     def get_multiple_albums(self, album_ids: List[str]) -> List[Dict[str, Any]]:
         """
@@ -523,7 +574,9 @@ class SpotifyService:
             self.spotify_connector.connect()
             albums = self.spotify_connector.client.albums(album_ids)["albums"]
 
-            self.logger.info(f"Successfully retrieved details for {len(albums)} albums.")
+            self.logger.info(
+                f"Successfully retrieved details for {len(albums)} albums."
+            )
             return albums
 
         except Exception as e:
@@ -544,7 +597,9 @@ class SpotifyService:
         Raises:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
-        self.logger.info(f"Attempting to add {len(track_ids)} tracks to playlist {playlist_id}.")
+        self.logger.info(
+            f"Attempting to add {len(track_ids)} tracks to playlist {playlist_id}."
+        )
 
         try:
             self.spotify_connector.connect()
@@ -553,14 +608,27 @@ class SpotifyService:
             self.spotify_connector.client.playlist_add_items(playlist_id, track_ids)
 
             self.logger.info(
-                f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}.")
-            return f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}."
+                f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}."
+            )
+            return (
+                f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}."
+            )
 
         except Exception as e:
-            self.logger.error(f"Failed to add tracks to playlist {playlist_id}.", exc_info=True)
-            raise ConnectionError(f"Could not add tracks to playlist {playlist_id}: {e}")
+            self.logger.error(
+                f"Failed to add tracks to playlist {playlist_id}.", exc_info=True
+            )
+            raise ConnectionError(
+                f"Could not add tracks to playlist {playlist_id}: {e}"
+            )
 
-    def create_playlist(self, name: str, description: str = "", public: bool = False, track_ids: List[str] = None) -> Dict[str, Any]:
+    def create_playlist(
+        self,
+        name: str,
+        description: str = "",
+        public: bool = False,
+        track_ids: List[str] = None,
+    ) -> Dict[str, Any]:
         """
         Creates a new playlist for the current user and optionally adds tracks to it.
 
@@ -576,7 +644,9 @@ class SpotifyService:
         Raises:
             ConnectionError: If there is a connection issue with the Spotify API.
         """
-        self.logger.info(f"Creating playlist '{name}' with description '{description}'.")
+        self.logger.info(
+            f"Creating playlist '{name}' with description '{description}'."
+        )
 
         try:
             self.spotify_connector.connect()
@@ -584,18 +654,19 @@ class SpotifyService:
             # Create the playlist
             user_id = self.spotify_connector.client.current_user()["id"]
             playlist = self.spotify_connector.client.user_playlist_create(
-                user=user_id,
-                name=name,
-                public=public,
-                description=description
+                user=user_id, name=name, public=public, description=description
             )
 
             self.logger.info(f"Playlist '{name}' created with ID: {playlist['id']}.")
 
             # Optionally add tracks to the new playlist
             if track_ids:
-                self.logger.info(f"Adding {len(track_ids)} tracks to playlist '{name}'.")
-                self.spotify_connector.client.playlist_add_items(playlist_id=playlist['id'], items=track_ids)
+                self.logger.info(
+                    f"Adding {len(track_ids)} tracks to playlist '{name}'."
+                )
+                self.spotify_connector.client.playlist_add_items(
+                    playlist_id=playlist["id"], items=track_ids
+                )
                 self.logger.info(f"Successfully added tracks to playlist '{name}'.")
 
             return playlist

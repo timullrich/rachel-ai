@@ -34,7 +34,9 @@ class CommandExecutor(ExecutorInterface):
         if command:
             try:
                 # Schreibe das Kommando in eine temporäre Datei, um es direkt auszuführen
-                with tempfile.NamedTemporaryFile("w", delete=False, suffix=".sh") as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    "w", delete=False, suffix=".sh"
+                ) as temp_file:
                     # Schreibe den Befehl und überprüfe die Syntax für sed -i '' auf macOS
                     if "sed -i ''" in command:
                         command = command.replace("sed -i ''", "sed -i ''")

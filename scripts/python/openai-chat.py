@@ -12,27 +12,32 @@ client = OpenAI(api_key=openai_api_key)
 # List to store the conversation history
 conversation_history = []
 
+
 def chat_with_gpt(user_input):
     # Add the user's input to the conversation history
     conversation_history.append({"role": "user", "content": user_input})
 
     # Get the response from OpenAI
     completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # oder "gpt-4"
-        messages=conversation_history
+        model="gpt-3.5-turbo", messages=conversation_history  # oder "gpt-4"
     )
 
     # Extract the assistant's reply
-    assistant_reply = completion.choices[0].message.content  # Hier wird der Inhalt korrekt abgerufen
+    assistant_reply = completion.choices[
+        0
+    ].message.content  # Hier wird der Inhalt korrekt abgerufen
 
     # Add the assistant's reply to the conversation history
     conversation_history.append({"role": "assistant", "content": assistant_reply})
 
     return assistant_reply
 
+
 if __name__ == "__main__":
     # Optional: eine Systemnachricht hinzufügen
-    conversation_history.insert(0, {"role": "system", "content": "You are a helpful assistant."})
+    conversation_history.insert(
+        0, {"role": "system", "content": "You are a helpful assistant."}
+    )
 
     print("Welcome to the OpenAI Chat! Type 'exit' or 'quit' to end the conversation.")
     while True:
@@ -40,7 +45,7 @@ if __name__ == "__main__":
         user_input = input("You: ")
 
         # Exit the loop if the user types 'exit' or 'quit'
-        if user_input.lower() in ['exit', 'quit']:
+        if user_input.lower() in ["exit", "quit"]:
             print("Goodbye!")
             break
 

@@ -5,11 +5,14 @@ import warnings
 import os
 
 # Suppress the FP16 warning
-warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
+warnings.filterwarnings(
+    "ignore", message="FP16 is not supported on CPU; using FP32 instead"
+)
 
 # Load the Whisper model
 model = whisper.load_model(
-    "base")  # You can also choose "tiny" or "small" based on resource availability
+    "base"
+)  # You can also choose "tiny" or "small" based on resource availability
 
 # Recording parameters
 duration = 10  # Recording duration in seconds
@@ -20,7 +23,9 @@ output_file = "output.wav"
 def record_audio(duration, sample_rate):
     """Record audio for the given duration."""
     print("Recording started for 10 seconds...")
-    audio = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype='int16')
+    audio = sd.rec(
+        int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="int16"
+    )
     sd.wait()  # Wait until the recording is complete
     return audio
 

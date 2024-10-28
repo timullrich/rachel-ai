@@ -15,14 +15,18 @@ access_key = os.getenv("PORCUPINE_ACCESS_KEY")
 # Dynamically get the absolute path to the PPN file
 script_dir = os.path.dirname(os.path.realpath(__file__))
 # Paths to the PPN and PV files
-keyword_path = os.path.join(script_dir,
-                            f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn")
-model_path = os.path.join(script_dir, "../../resources/porcupine/porcupine_params_de.pv")
+keyword_path = os.path.join(
+    script_dir, f"../../resources/porcupine/platform/{platform}/rachel_wake_word.ppn"
+)
+model_path = os.path.join(
+    script_dir, "../../resources/porcupine/porcupine_params_de.pv"
+)
 
 
 def start_chat():
     script_to_start = os.path.join(script_dir, "../../main.py")
     subprocess.run(["python3", script_to_start])
+
 
 def audio_callback(indata, frames, time, status):
     global porcupine
@@ -33,6 +37,7 @@ def audio_callback(indata, frames, time, status):
         print("Wake word 'Hey Rachel' detected!")
         start_chat()
 
+
 def main():
     global porcupine
     porcupine = None
@@ -40,12 +45,15 @@ def main():
     try:
         # Initialize Porcupine with the access key and the keyword path
         porcupine = pvporcupine.create(
-            access_key=access_key,
-            keyword_paths=[keyword_path],
-            model_path=model_path
+            access_key=access_key, keyword_paths=[keyword_path], model_path=model_path
         )
 
-        with sd.InputStream(samplerate=porcupine.sample_rate, channels=1, callback=audio_callback, blocksize=porcupine.frame_length):
+        with sd.InputStream(
+            samplerate=porcupine.sample_rate,
+            channels=1,
+            callback=audio_callback,
+            blocksize=porcupine.frame_length,
+        ):
             print("Listening for 'Hey Rachel'...")
             while True:
                 sd.sleep(1000)
@@ -53,6 +61,7 @@ def main():
     finally:
         if porcupine is not None:
             porcupine.delete()
+
 
 if __name__ == "__main__":
     main()

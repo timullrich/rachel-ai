@@ -26,4 +26,3 @@ class OpenAiConnector(ConnectorInterface):
 
     def connect(self):
         self.client = OpenAI(api_key=self.api_key)
-

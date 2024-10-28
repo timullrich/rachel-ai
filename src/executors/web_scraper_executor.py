@@ -22,7 +22,7 @@ class WebScraperExecutor(ExecutorInterface):
                     },
                     "required": ["url"],
                 },
-            }
+            },
         }
 
     def exec(self, arguments: Dict[str, Any]) -> str:

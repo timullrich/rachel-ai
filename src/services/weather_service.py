@@ -55,21 +55,21 @@ class WeatherService:
                 "temperature": {
                     "temp": round(weather.temperature("celsius")["temp"]),
                     "temp_min": round(weather.temperature("celsius")["temp_min"]),
-                    "temp_max": round(weather.temperature("celsius")["temp_max"])
+                    "temp_max": round(weather.temperature("celsius")["temp_max"]),
                 },
                 "humidity": weather.humidity,
                 "pressure": {
                     "press": weather.pressure["press"],
-                    "sea_level": weather.pressure.get("sea_level", None)
+                    "sea_level": weather.pressure.get("sea_level", None),
                 },
                 "wind": {
                     "speed": round(weather.wind()["speed"], 1),
-                    "deg": weather.wind().get("deg", None)
+                    "deg": weather.wind().get("deg", None),
                 },
                 "clouds": weather.clouds,
-                "rain": weather.rain if hasattr(weather, 'rain') else None,
-                "snow": weather.snow if hasattr(weather, 'snow') else None,
-                "visibility_distance": weather.visibility_distance
+                "rain": weather.rain if hasattr(weather, "rain") else None,
+                "snow": weather.snow if hasattr(weather, "snow") else None,
+                "visibility_distance": weather.visibility_distance,
             }
 
             self.logger.info(
@@ -121,21 +121,21 @@ class WeatherService:
                     "temperature": {
                         "temp": round(weather.temperature("celsius")["temp"]),
                         "temp_min": round(weather.temperature("celsius")["temp_min"]),
-                        "temp_max": round(weather.temperature("celsius")["temp_max"])
+                        "temp_max": round(weather.temperature("celsius")["temp_max"]),
                     },
                     "humidity": weather.humidity,
                     "pressure": {
                         "press": weather.pressure["press"],
-                        "sea_level": weather.pressure.get("sea_level", None)
+                        "sea_level": weather.pressure.get("sea_level", None),
                     },
                     "wind": {
                         "speed": round(weather.wind()["speed"], 1),
-                        "deg": weather.wind().get("deg", None)
+                        "deg": weather.wind().get("deg", None),
                     },
                     "clouds": weather.clouds,
-                    "rain": weather.rain if hasattr(weather, 'rain') else None,
-                    "snow": weather.snow if hasattr(weather, 'snow') else None,
-                    "visibility_distance": weather.visibility_distance
+                    "rain": weather.rain if hasattr(weather, "rain") else None,
+                    "snow": weather.snow if hasattr(weather, "snow") else None,
+                    "visibility_distance": weather.visibility_distance,
                 }
                 for weather in forecast_list
                 if self._is_within_days(weather.reference_time("iso"), days)

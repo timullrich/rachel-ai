@@ -35,10 +35,10 @@ class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
     def __init__(
-            self,
-            open_ai_connector: OpenAiConnector,
-            user_language: str = "en",
-            sound_theme: str = "default",
+        self,
+        open_ai_connector: OpenAiConnector,
+        user_language: str = "en",
+        sound_theme: str = "default",
     ) -> None:
         """
         Initializes the AudioService class with the necessary dependencies.
@@ -94,10 +94,10 @@ class AudioService:
             raise
 
     def record(
-            self,
-            sample_rate: int = 16000,
-            frame_duration_ms: int = 30,
-            max_silence_duration: float = 1.0,
+        self,
+        sample_rate: int = 16000,
+        frame_duration_ms: int = 30,
+        max_silence_duration: float = 1.0,
     ) -> AudioRecordResult:
         """
         Records audio dynamically, starting only when speech is detected,
@@ -121,7 +121,7 @@ class AudioService:
 
         # Using a context manager to ensure resources are properly managed
         with sd.InputStream(
-                samplerate=sample_rate, channels=1, dtype="int16"
+            samplerate=sample_rate, channels=1, dtype="int16"
         ) as stream:
             self.logger.info("Audio stream started.")
             start_time = time.time()  # Track the start time to handle silence timeouts
@@ -150,7 +150,7 @@ class AudioService:
                             break  # Stop the recording
 
                         silence_duration += (
-                                frame_duration_ms / 1000
+                            frame_duration_ms / 1000
                         )  # Increase silence duration
 
             finally:
@@ -199,7 +199,7 @@ class AudioService:
             return False
 
     def transcribe_audio(
-            self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
+        self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
     ) -> str:
         """
         Transcribes the recorded audio data using OpenAI's Whisper API.
@@ -278,7 +278,7 @@ class AudioService:
             with self.transcription_lock:
                 # Request OpenAI TTS API to convert the text to audio
                 with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
-                        model="tts-1", voice="nova", input=text, response_format="pcm"
+                    model="tts-1", voice="nova", input=text, response_format="pcm"
                 ) as response_audio:
                     self.logger.info("Audio of sentence received from OpenAI API.")
 
@@ -314,7 +314,7 @@ class AudioService:
 
         try:
             with sd.OutputStream(
-                    samplerate=samplerate, channels=channels, dtype="int16"
+                samplerate=samplerate, channels=channels, dtype="int16"
             ) as stream_audio:
                 self.logger.info("Audio stream started.")
 
@@ -342,8 +342,9 @@ class AudioService:
             self.logger.info("Audio playback finished and stream closed.")
             sd.wait()  # Ensure all audio buffers are played
 
-    def collect_until_sentence_end(self, text_buffer: str, in_code_block: bool = False) -> Tuple[
-        str, str, bool]:
+    def collect_until_sentence_end(
+        self, text_buffer: str, in_code_block: bool = False
+    ) -> Tuple[str, str, bool]:
         """
         Collects text from the buffer until a sentence-ending punctuation (., !, ?) is detected.
         Handles code blocks by ignoring sentence-ending punctuation within them.
@@ -355,7 +356,9 @@ class AudioService:
                  and the third element is the updated code block flag.
         """
         # Apply special content parsing to handle links and code
-        processed_text, code_block_open = self.parse_special_content(text_buffer, in_code_block)
+        processed_text, code_block_open = self.parse_special_content(
+            text_buffer, in_code_block
+        )
 
         # Update the code block status
         in_code_block = in_code_block or code_block_open
@@ -363,7 +366,7 @@ class AudioService:
         # If inside a code block, skip sentence detection
         if in_code_block:
             # Check if the code block closes within the current buffer
-            if re.search(r'```', processed_text):
+            if re.search(r"```", processed_text):
                 in_code_block = False  # End of code block
             return "", processed_text, in_code_block
 
@@ -373,7 +376,7 @@ class AudioService:
         if match:
             # Return the sentence and the remaining text
             sentence = processed_text[: match.end()]
-            remaining_text = processed_text[match.end():]
+            remaining_text = processed_text[match.end() :]
             self.logger.debug(
                 f"Detected sentence end. Sentence: '{sentence}', Remaining: '{remaining_text}'"
             )
@@ -395,37 +398,45 @@ class AudioService:
         :return: A tuple containing the modified text and a boolean indicating if inside a code block.
         """
         # Handle links in Markdown format [Text](URL)
-        text = re.sub(r'\[([^\]]+)\]\(https?://[^\s]+?\)',
-                      'Den Link findest du in der Textausgabe.', text)
+        text = re.sub(
+            r"\[([^\]]+)\]\(https?://[^\s]+?\)",
+            "Den Link findest du in der Textausgabe.",
+            text,
+        )
 
         # Check for the start or end of a code block with triple backticks ```
         if in_code_block:
-            end_match = re.search(r'```', text)
+            end_match = re.search(r"```", text)
             if end_match:
-                text = 'Den Quellcode findest du in der Textausgabe.' + text[end_match.end():]
+                text = (
+                    "Den Quellcode findest du in der Textausgabe."
+                    + text[end_match.end() :]
+                )
                 in_code_block = False
             else:
-                text = 'Den Quellcode findest du in der Textausgabe.'
+                text = "Den Quellcode findest du in der Textausgabe."
         else:
-            start_match = re.search(r'```', text)
+            start_match = re.search(r"```", text)
             if start_match:
-                end_match = re.search(r'```', text[start_match.end():])
+                end_match = re.search(r"```", text[start_match.end() :])
                 if end_match:
                     text = (
-                            text[:start_match.start()]
-                            + 'Den Quellcode findest du in der Textausgabe.'
-                            + text[start_match.end() + end_match.end():]
+                        text[: start_match.start()]
+                        + "Den Quellcode findest du in der Textausgabe."
+                        + text[start_match.end() + end_match.end() :]
                     )
                 else:
                     text = (
-                            text[:start_match.start()]
-                            + 'Den Quellcode findest du in der Textausgabe.'
+                        text[: start_match.start()]
+                        + "Den Quellcode findest du in der Textausgabe."
                     )
                     in_code_block = True
 
         # Replace inline code with double backticks (but ignore single backticks)
         if not in_code_block:
-            text = re.sub(r'``[^`]+``', 'Den Quellcode findest du in der Textausgabe.', text)
+            text = re.sub(
+                r"``[^`]+``", "Den Quellcode findest du in der Textausgabe.", text
+            )
 
         # Skip numbers in prices like "66.842 USD" to leave them as is
         text = self.skip_price_numbers(text)
@@ -445,7 +456,7 @@ class AudioService:
         :return: The modified text with prices preserved.
         """
         # Match prices with pattern 'X.XXX USD' or 'XX,XXX EUR' and keep them unchanged
-        return re.sub(r'\b\d{1,3}(?:[.,]\d{3})* (USD|EUR)\b', lambda m: m.group(), text)
+        return re.sub(r"\b\d{1,3}(?:[.,]\d{3})* (USD|EUR)\b", lambda m: m.group(), text)
 
     def convert_numbers_to_words(self, text: str) -> str:
         """
@@ -455,16 +466,26 @@ class AudioService:
         """
         # Map of numbers to words
         numbers_map = {
-            "0": "null", "1": "eins", "2": "zwei", "3": "drei", "4": "vier",
-            "5": "fünf", "6": "sechs", "7": "sieben", "8": "acht", "9": "neun",
+            "0": "null",
+            "1": "eins",
+            "2": "zwei",
+            "3": "drei",
+            "4": "vier",
+            "5": "fünf",
+            "6": "sechs",
+            "7": "sieben",
+            "8": "acht",
+            "9": "neun",
         }
 
         def number_to_word(match):
             num_str = match.group()
-            return ' '.join(numbers_map[digit] for digit in num_str if digit in numbers_map)
+            return " ".join(
+                numbers_map[digit] for digit in num_str if digit in numbers_map
+            )
 
         # Replace isolated numbers
-        return re.sub(r'\b\d+\b', number_to_word, text)
+        return re.sub(r"\b\d+\b", number_to_word, text)
 
     def convert_dates_to_words(self, text: str) -> str:
         """
@@ -487,10 +508,10 @@ class AudioService:
                 return date_str  # If parsing fails, return the original string
 
         # Replace dates in the format DD.MM.YYYY
-        return re.sub(r'\b\d{2}\.\d{2}\.\d{4}\b', date_to_words, text)
+        return re.sub(r"\b\d{2}\.\d{2}\.\d{4}\b", date_to_words, text)
 
     def play_stream_audio(
-            self, stream: Any, samplerate: int = 24000, channels: int = 1
+        self, stream: Any, samplerate: int = 24000, channels: int = 1
     ) -> None:
         """
         Stream GPT responses, convert them into speech, and play the audio in a separate thread.
@@ -526,8 +547,8 @@ class AudioService:
                         text_buffer += content
 
                         # Sentence detection and start speech processing
-                        sentence, remaining_text, in_code_block = self.collect_until_sentence_end(
-                            text_buffer, in_code_block
+                        sentence, remaining_text, in_code_block = (
+                            self.collect_until_sentence_end(text_buffer, in_code_block)
                         )
                         if sentence:
                             self.logger.debug(
