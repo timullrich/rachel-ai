@@ -14,6 +14,7 @@ from typing import Any, Optional, Tuple
 
 # Third-party imports
 import numpy as np
+from numpy import ndarray
 import sounddevice as sd
 import webrtcvad
 
@@ -35,10 +36,10 @@ class AudioService:
     ALLOWED_SOUND_KEYS = {"sent", "standby"}
 
     def __init__(
-        self,
-        open_ai_connector: OpenAiConnector,
-        user_language: str = "en",
-        sound_theme: str = "default",
+            self,
+            open_ai_connector: OpenAiConnector,
+            user_language: str = "en",
+            sound_theme: str = "default",
     ) -> None:
         """
         Initializes the AudioService class with the necessary dependencies.
@@ -94,10 +95,10 @@ class AudioService:
             raise
 
     def record(
-        self,
-        sample_rate: int = 16000,
-        frame_duration_ms: int = 30,
-        max_silence_duration: float = 1.0,
+            self,
+            sample_rate: int = 16000,
+            frame_duration_ms: int = 30,
+            max_silence_duration: float = 1.0,
     ) -> AudioRecordResult:
         """
         Records audio dynamically, starting only when speech is detected,
@@ -121,7 +122,7 @@ class AudioService:
 
         # Using a context manager to ensure resources are properly managed
         with sd.InputStream(
-            samplerate=sample_rate, channels=1, dtype="int16"
+                samplerate=sample_rate, channels=1, dtype="int16"
         ) as stream:
             self.logger.info("Audio stream started.")
             start_time = time.time()  # Track the start time to handle silence timeouts
@@ -150,7 +151,7 @@ class AudioService:
                             break  # Stop the recording
 
                         silence_duration += (
-                            frame_duration_ms / 1000
+                                frame_duration_ms / 1000
                         )  # Increase silence duration
 
             finally:
@@ -199,7 +200,7 @@ class AudioService:
             return False
 
     def transcribe_audio(
-        self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
+            self, record_result: AudioRecordResult, language: str, sample_rate: int = 16000
     ) -> str:
         """
         Transcribes the recorded audio data using OpenAI's Whisper API.
@@ -278,12 +279,12 @@ class AudioService:
             with self.transcription_lock:
                 # Request OpenAI TTS API to convert the text to audio
                 with self.open_ai_connector.client.audio.speech.with_streaming_response.create(
-                    model="tts-1", voice="nova", input=text, response_format="pcm"
+                        model="tts-1", voice="nova", input=text, response_format="pcm"
                 ) as response_audio:
                     self.logger.info("Audio of sentence received from OpenAI API.")
 
                     # Convert the audio response to a NumPy array
-                    audio_data = np.frombuffer(response_audio.read(), dtype=np.int16)
+                    audio_data: ndarray = np.frombuffer(response_audio.read(), dtype=np.int16)
                     self.logger.info(
                         f"Received audio data (size: {audio_data.size} samples)."
                     )
@@ -314,7 +315,7 @@ class AudioService:
 
         try:
             with sd.OutputStream(
-                samplerate=samplerate, channels=channels, dtype="int16"
+                    samplerate=samplerate, channels=channels, dtype="int16"
             ) as stream_audio:
                 self.logger.info("Audio stream started.")
 
@@ -343,7 +344,7 @@ class AudioService:
             sd.wait()  # Ensure all audio buffers are played
 
     def collect_until_sentence_end(
-        self, text_buffer: str, in_code_block: bool = False
+            self, text_buffer: str, in_code_block: bool = False
     ) -> Tuple[str, str, bool]:
         """
         Collects text from the buffer until a sentence-ending punctuation (., !, ?) is detected.
@@ -376,7 +377,7 @@ class AudioService:
         if match:
             # Return the sentence and the remaining text
             sentence = processed_text[: match.end()]
-            remaining_text = processed_text[match.end() :]
+            remaining_text = processed_text[match.end():]
             self.logger.debug(
                 f"Detected sentence end. Sentence: '{sentence}', Remaining: '{remaining_text}'"
             )
@@ -388,19 +389,18 @@ class AudioService:
         )
         return "", text_buffer, in_code_block
 
-    import datetime
-
     def parse_special_content(self, text: str, in_code_block: bool) -> Tuple[str, bool]:
         """
         Parse the text to replace links, identify code blocks, and handle numbers and dates.
         :param text: The input text that may contain links, code snippets, numbers, and dates.
         :param in_code_block: A flag indicating if currently inside a code block.
-        :return: A tuple containing the modified text and a boolean indicating if inside a code block.
+        :return: A tuple containing the modified text and a boolean indicating if inside a
+                code block.
         """
         # Handle links in Markdown format [Text](URL)
         text = re.sub(
-            r"\[([^\]]+)\]\(https?://[^\s]+?\)",
-            "Den Link findest du in der Textausgabe.",
+            r"\[([^]]+)]\((https?://[^\s]+?)\)",
+            r"\1 (Den Link findest du in der Textausgabe.)",
             text,
         )
 
@@ -409,8 +409,8 @@ class AudioService:
             end_match = re.search(r"```", text)
             if end_match:
                 text = (
-                    "Den Quellcode findest du in der Textausgabe."
-                    + text[end_match.end() :]
+                        "Den Quellcode findest du in der Textausgabe."
+                        + text[end_match.end():]
                 )
                 in_code_block = False
             else:
@@ -418,17 +418,17 @@ class AudioService:
         else:
             start_match = re.search(r"```", text)
             if start_match:
-                end_match = re.search(r"```", text[start_match.end() :])
+                end_match = re.search(r"```", text[start_match.end():])
                 if end_match:
                     text = (
-                        text[: start_match.start()]
-                        + "Den Quellcode findest du in der Textausgabe."
-                        + text[start_match.end() + end_match.end() :]
+                            text[: start_match.start()]
+                            + "Den Quellcode findest du in der Textausgabe."
+                            + text[start_match.end() + end_match.end():]
                     )
                 else:
                     text = (
-                        text[: start_match.start()]
-                        + "Den Quellcode findest du in der Textausgabe."
+                            text[: start_match.start()]
+                            + "Den Quellcode findest du in der Textausgabe."
                     )
                     in_code_block = True
 
@@ -444,8 +444,8 @@ class AudioService:
         # Replace remaining numerals with written numbers
         # text = self.convert_numbers_to_words(text)
 
-        # Replace dates like "23.10.2024" with "dreiundzwanzigster Oktober zweitausendvierundzwanzig"
-        text = self.convert_dates_to_words(text)
+        # Replace dates like "23.10.2024"
+        # text = self.convert_dates_to_words(text)
 
         return text, in_code_block
 
@@ -511,7 +511,7 @@ class AudioService:
         return re.sub(r"\b\d{2}\.\d{2}\.\d{4}\b", date_to_words, text)
 
     def play_stream_audio(
-        self, stream: Any, samplerate: int = 24000, channels: int = 1
+            self, stream: Any, samplerate: int = 24000, channels: int = 1
     ) -> None:
         """
         Stream GPT responses, convert them into speech, and play the audio in a separate thread.
