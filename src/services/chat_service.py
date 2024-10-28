@@ -48,6 +48,7 @@ class ChatService:
         executors: Optional[List[ExecutorInterface]] = None,
     ):
         self.openai_connector: OpenAiConnector = openai_connector
+        self.openai_connector.connect()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.user_language = user_language
         self.executors: List[ExecutorInterface] = executors

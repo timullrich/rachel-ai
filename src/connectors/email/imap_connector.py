@@ -1,7 +1,9 @@
 from imapclient import IMAPClient
 
+from .._connector_interface import ConnectorInterface
 
-class ImapConnector:
+
+class ImapConnector(ConnectorInterface):
     """
     A connector class for handling IMAP (email receiving) configuration.
 
@@ -13,7 +15,7 @@ class ImapConnector:
         self.imap_user = imap_user
         self.imap_password = imap_password
 
-    def connect_and_login(self) -> IMAPClient:
+    def connect(self) -> IMAPClient:
         """
         Establishes a connection to the IMAP server and logs in with the provided credentials.
 

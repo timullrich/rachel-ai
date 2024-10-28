@@ -1,7 +1,9 @@
 import smtplib
 
+from .._connector_interface import ConnectorInterface
 
-class SmtpConnector:
+
+class SmtpConnector(ConnectorInterface):
     """
     A connector class for handling SMTP (email sending) configuration.
 
@@ -13,7 +15,7 @@ class SmtpConnector:
         self.smtp_user = smtp_user
         self.smtp_password = smtp_password
 
-    def connect_and_login(self) -> smtplib.SMTP:
+    def connect(self) -> smtplib.SMTP:
         """
         Establishes a connection to the SMTP server and logs in with the provided credentials.
 

@@ -1,3 +1,4 @@
+from ._connector_interface import ConnectorInterface
 from .openai import OpenAiConnector, StreamSplitter
 from .email import SmtpConnector, ImapConnector
 from .weather import OpenWeatherMapConnector
@@ -12,4 +13,5 @@ __all__ = [
     "OpenWeatherMapConnector",
     "CoinGeckoConnector",
     "SpotifyConnector",
+    "ConnectorInterface",
 ]

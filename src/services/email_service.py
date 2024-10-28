@@ -53,7 +53,7 @@ class EmailService:
             msg["From"] = self.smtp_connector.smtp_user
             msg["To"] = to
 
-            with self.smtp_connector.connect_and_login() as server:
+            with self.smtp_connector.connect() as server:
                 server.send_message(msg)
 
             self.logger.info(f"Email successfully sent to {to}")
@@ -79,7 +79,7 @@ class EmailService:
         self.logger.info(f"Attempting to fetch email with ID {email_id}")
 
         try:
-            with self.imap_connector.connect_and_login() as mail:
+            with self.imap_connector.connect() as mail:
                 mail.select_folder("INBOX")  # Use the select_folder method
 
                 # Convert the email_id to integer if necessary
@@ -133,7 +133,7 @@ class EmailService:
         )
 
         try:
-            with self.imap_connector.connect_and_login() as mail:
+            with self.imap_connector.connect() as mail:
                 mail.select_folder("INBOX")
 
                 # Build the search criteria
@@ -214,7 +214,7 @@ class EmailService:
         self.logger.info(f"Attempting to delete emails with IDs {email_ids}")
         try:
             # Connection and login via ImapConnector
-            with self.imap_connector.connect_and_login() as mail:
+            with self.imap_connector.connect() as mail:
                 mail.select_folder("INBOX")  # Select the inbox folder
 
                 # Convert email_ids to integers if necessary

@@ -1,7 +1,9 @@
 import pyowm
 
+from .._connector_interface import ConnectorInterface
 
-class OpenWeatherMapConnector:
+
+class OpenWeatherMapConnector(ConnectorInterface):
     """
     A connector class for handling weather data retrieval via the OpenWeatherMap API.
 

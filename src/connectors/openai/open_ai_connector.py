@@ -1,7 +1,9 @@
 from openai import OpenAI
 
+from .._connector_interface import ConnectorInterface
 
-class OpenAiConnector:
+
+class OpenAiConnector(ConnectorInterface):
     """
     A connector class for interacting with the OpenAI API.
 
@@ -19,4 +21,9 @@ class OpenAiConnector:
     """
 
     def __init__(self, api_key: str):
+        self.api_key = api_key
         self.client = OpenAI(api_key=api_key)
+
+    def connect(self):
+        self.client = OpenAI(api_key=self.api_key)
+

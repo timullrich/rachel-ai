@@ -1,8 +1,10 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
+from .._connector_interface import ConnectorInterface
 
-class SpotifyConnector:
+
+class SpotifyConnector(ConnectorInterface):
     """
     A connector class for handling Spotify API connection and authentication.
     This class manages the authentication process and initializes the Spotify API client.
