@@ -1,8 +1,9 @@
+import os
+import warnings
+
+import scipy.io.wavfile as wav
 import sounddevice as sd
 import whisper
-import scipy.io.wavfile as wav
-import warnings
-import os
 
 # Suppress the FP16 warning
 warnings.filterwarnings(

@@ -1,9 +1,10 @@
 import os
-from dotenv import load_dotenv
+import subprocess
+
+import numpy as np
 import pvporcupine
 import sounddevice as sd
-import numpy as np
-import subprocess
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()

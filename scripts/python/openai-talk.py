@@ -1,20 +1,21 @@
-import itertools
-import sounddevice as sd
-import numpy as np
-import webrtcvad
-import scipy.io.wavfile as wav
-import os
-import sys
-import queue
-import time
-import re
 import concurrent.futures
-import threading
+import itertools
+import os
+import queue
+import re
 import subprocess
-from colorama import Fore, Style
-from openai import OpenAI
-from dotenv import load_dotenv
+import sys
+import threading
+import time
+
+import numpy as np
 import pvporcupine
+import scipy.io.wavfile as wav
+import sounddevice as sd
+import webrtcvad
+from colorama import Fore, Style
+from dotenv import load_dotenv
+from openai import OpenAI
 
 # Load environment variables from .env file
 load_dotenv()

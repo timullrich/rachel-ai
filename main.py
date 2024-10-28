@@ -1,40 +1,43 @@
+import argparse
 import logging
 import os
 import sys
 import threading
-import argparse
-from typing import List, Dict, Any
+from typing import Dict, List
 
 # 3rd party libraries
 from colorama import Fore, Style
 from dotenv import load_dotenv
 
 # local modules
-from src.connectors import OpenAiConnector, StreamSplitter
-from src.connectors import SmtpConnector, ImapConnector
-from src.connectors import OpenWeatherMapConnector
-from src.connectors import CoinGeckoConnector
-from src.connectors import SpotifyConnector
-
+from src.connectors import (
+    CoinGeckoConnector,
+    ImapConnector,
+    OpenAiConnector,
+    OpenWeatherMapConnector,
+    SmtpConnector,
+    SpotifyConnector,
+    StreamSplitter,
+)
 from src.entities import AudioRecordResult
+from src.executors import (
+    CommandExecutor,
+    ContactExecutor,
+    CryptoDataExecutor,
+    EmailExecutor,
+    SpotifyExecutor,
+    WeatherExecutor,
+    WebScraperExecutor,
+)
 from src.services import (
     AudioService,
     ChatService,
-    EmailService,
     ContactService,
+    CryptoDataService,
+    EmailService,
+    SpotifyService,
     WeatherService,
     WebScraperService,
-    CryptoDataService,
-    SpotifyService,
-)
-from src.executors import (
-    CommandExecutor,
-    EmailExecutor,
-    ContactExecutor,
-    WeatherExecutor,
-    WebScraperExecutor,
-    CryptoDataExecutor,
-    SpotifyExecutor,
 )
 
 
