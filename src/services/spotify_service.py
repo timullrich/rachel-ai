@@ -529,3 +529,77 @@ class SpotifyService:
         except Exception as e:
             self.logger.error("Failed to retrieve multiple albums.", exc_info=True)
             raise ConnectionError(f"Could not fetch album details: {e}")
+
+    def add_tracks_to_playlist(self, playlist_id: str, track_ids: List[str]) -> str:
+        """
+        Adds multiple tracks to a specified playlist.
+
+        Args:
+            playlist_id (str): The Spotify playlist ID where the tracks should be added.
+            track_ids (List[str]): A list of Spotify track IDs to add to the playlist.
+
+        Returns:
+            str: A confirmation message if the tracks were successfully added to the playlist.
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Attempting to add {len(track_ids)} tracks to playlist {playlist_id}.")
+
+        try:
+            self.spotify_connector.connect()
+
+            # Adding tracks to the playlist
+            self.spotify_connector.client.playlist_add_items(playlist_id, track_ids)
+
+            self.logger.info(
+                f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}.")
+            return f"Successfully added {len(track_ids)} tracks to playlist {playlist_id}."
+
+        except Exception as e:
+            self.logger.error(f"Failed to add tracks to playlist {playlist_id}.", exc_info=True)
+            raise ConnectionError(f"Could not add tracks to playlist {playlist_id}: {e}")
+
+    def create_playlist(self, name: str, description: str = "", public: bool = False, track_ids: List[str] = None) -> Dict[str, Any]:
+        """
+        Creates a new playlist for the current user and optionally adds tracks to it.
+
+        Args:
+            name (str): The name of the new playlist.
+            description (str, optional): A description for the playlist. Defaults to an empty string.
+            public (bool, optional): Whether the playlist should be public. Defaults to False.
+             track_ids (List[str]): A list of Spotify track IDs to add to the playlist.
+
+        Returns:
+            Dict[str, Any]: A dictionary with details about the created playlist.
+
+        Raises:
+            ConnectionError: If there is a connection issue with the Spotify API.
+        """
+        self.logger.info(f"Creating playlist '{name}' with description '{description}'.")
+
+        try:
+            self.spotify_connector.connect()
+
+            # Create the playlist
+            user_id = self.spotify_connector.client.current_user()["id"]
+            playlist = self.spotify_connector.client.user_playlist_create(
+                user=user_id,
+                name=name,
+                public=public,
+                description=description
+            )
+
+            self.logger.info(f"Playlist '{name}' created with ID: {playlist['id']}.")
+
+            # Optionally add tracks to the new playlist
+            if track_ids:
+                self.logger.info(f"Adding {len(track_ids)} tracks to playlist '{name}'.")
+                self.spotify_connector.client.playlist_add_items(playlist_id=playlist['id'], items=track_ids)
+                self.logger.info(f"Successfully added tracks to playlist '{name}'.")
+
+            return playlist
+
+        except Exception as e:
+            self.logger.error("Failed to create playlist or add tracks.", exc_info=True)
+            raise ConnectionError(f"Could not create playlist '{name}': {e}")

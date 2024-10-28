@@ -28,8 +28,8 @@ class SpotifyExecutor(ExecutorInterface):
                     "Performs Spotify-related operations. "
                     "Supports 'get_user_playlists', 'search_track', 'get_track_details', 'get_liked_songs', 'play_track', "
                     "'get_available_devices', 'pause_playback', 'skip_to_next_track', 'get_current_playback_info', "
-                    "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', and 'get_similar_tracks'. "
-                    "get_playlist"
+                    "'add_track_to_queue', 'add_tracks_to_queue', 'set_volume', 'play_playlist', 'get_similar_tracks', "
+                    "'get_album_details', 'get_multiple_albums', 'get_playlist', 'create_playlist', 'add_tracks_to_playlist'."
                 ),
                 "parameters": {
                     "type": "object",
@@ -70,7 +70,8 @@ class SpotifyExecutor(ExecutorInterface):
                             "type": "array",
                             "items": {"type": "string"},
                             "description": (
-                                "A list of Spotify track IDs to add to the queue. Required for 'add_tracks_to_queue'."
+                                "A list of Spotify track IDs to add to the playlist or queue. "
+                                "Optional for 'create_playlist' (adds tracks upon creation), required for 'add_tracks_to_queue' and 'add_tracks_to_playlist'."
                             ),
                         },
                         "limit": {
@@ -107,6 +108,18 @@ class SpotifyExecutor(ExecutorInterface):
                                 "A list of Spotify album IDs to fetch multiple albums. Required for 'get_multiple_albums'."
                             ),
                         },
+                        "playlist_name": {
+                            "type": "string",
+                            "description": "The name for the new playlist, required for 'create_playlist'."
+                        },
+                        "playlist_description": {
+                            "type": "string",
+                            "description": "A description for the playlist, optional for 'create_playlist'."
+                        },
+                        "public": {
+                            "type": "boolean",
+                            "description": "Whether the playlist should be public or private. Default is private."
+                        },
                     },
                     "required": ["operation"],
                     "additionalProperties": False,
@@ -133,6 +146,9 @@ class SpotifyExecutor(ExecutorInterface):
         device_id = arguments.get("device_id")
         volume_percent = arguments.get("volume_percent")
         playlist_id = arguments.get("playlist_id")
+        playlist_name = arguments.get("playlist_name")
+        playlist_description = arguments.get("playlist_description", "")
+        public = arguments.get("public", False)
 
         try:
             if operation == "get_user_playlists":
@@ -249,6 +265,35 @@ class SpotifyExecutor(ExecutorInterface):
                     return json.dumps(multiple_albums)
                 except Exception as e:
                     return f"Error fetching multiple albums: {e}"
+
+            # Create a new playlist
+            elif operation == "create_playlist":
+                if not playlist_name:
+                    return "Missing required parameter 'playlist_name' for 'create_playlist' operation."
+                try:
+                    playlist = self.spotify_service.create_playlist(
+                        name=playlist_name,
+                        description=playlist_description,
+                        public=public,
+                        track_ids=track_ids
+                    )
+                    return json.dumps(playlist)
+                except Exception as e:
+                    return f"Error creating playlist '{playlist_name}': {e}"
+
+                # Add tracks to an existing playlist
+            elif operation == "add_tracks_to_playlist":
+                if not playlist_id or not track_ids:
+                    return "Missing required parameters 'playlist_id' and/or 'tracks' for 'add_tracks_to_playlist' operation."
+                try:
+                    message = self.spotify_service.add_tracks_to_playlist(
+                        playlist_id=playlist_id,
+                        track_ids=track_ids
+                    )
+                    return message
+                except Exception as e:
+                    return f"Error adding tracks to playlist with ID '{playlist_id}': {e}"
+
             else:
                 return f"Invalid operation: {operation}"
 

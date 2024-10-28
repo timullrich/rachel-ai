@@ -116,7 +116,8 @@ if __name__ == "__main__":
         client_id=os.getenv("SPOTIFY_CLIENT_ID"),
         client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
         redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
-        scope="user-library-read playlist-read-private user-modify-playback-state user-read-playback-state"
+        scope = "user-library-read playlist-read-private playlist-modify-private "
+                "playlist-modify-public user-modify-playback-state user-read-playback-state"
     )
 
     coin_gecko_connector: CoinGeckoConnector = CoinGeckoConnector()
