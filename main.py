@@ -92,10 +92,6 @@ if __name__ == "__main__":
     # Init OpenAiConnector
     open_ai_connector: OpenAiConnector = OpenAiConnector(os.getenv("OPENAI_API_KEY"))
 
-    icloud_user = "[REDACTED_EMAIL]"
-    # icloud_password = "[REDACTED]"
-    icloud_password = "[REDACTED]"
-
     # Init email connectors
     smtp_connector: SmtpConnector = SmtpConnector(
         os.getenv("SMTP_SERVER"),
@@ -166,7 +162,7 @@ if __name__ == "__main__":
                 chat_service.print_stream_text(stream)
 
             else:
-                # Sprachmodus
+                # Voice modus
                 audio_service.play_sound("sent")
                 user_input_audio = audio_service.record()
                 audio_service.play_sound("sent")

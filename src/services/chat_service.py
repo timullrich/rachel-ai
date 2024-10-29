@@ -6,10 +6,13 @@ from typing import Any, Dict, List, Optional
 
 # Third-party imports
 from colorama import Fore, Style
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+from openai._streaming import Stream
 
 # Local application imports
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.executors import ExecutorInterface
+from src.exceptions import FunctionNotFound
 
 
 class ChatService:
@@ -69,7 +72,7 @@ class ChatService:
 
     def ask_chat_gpt(
         self, user_input: str, conversation_history: List[Dict[str, str]]
-    ) -> Any:
+    ) -> Stream[ChatCompletionChunk]:
         """
         Sends user input to the OpenAI ChatGPT model and processes the streaming response.
 
@@ -102,7 +105,7 @@ class ChatService:
         function_call_name = None
         function_call_arguments = ""
 
-        first_chunk = next(splitter.get())
+        first_chunk:ChatCompletionChunk = next(splitter.get())
         choice = first_chunk.choices[0].delta
 
         # Check if it's a function call
@@ -191,7 +194,7 @@ class ChatService:
             return splitter.get()
 
     def handle_function_call(
-        self, function_name: str, arguments: Dict[str, Any]
+            self, function_name: str, arguments: Dict[str, Any]
     ) -> str:
         """
         Executes the corresponding function based on the function name provided by GPT.
@@ -201,11 +204,14 @@ class ChatService:
             arguments (Dict[str, Any]): The arguments provided by GPT for the function execution.
 
         Returns:
-            str: The result of the function execution or an error message if no executor is found.
+            str: The result of the function execution.
+
+        Raises:
+            FunctionNotFoundError: If no executor is found for the given function name.
         """
         print(
             Fore.MAGENTA + Style.BRIGHT + f"Function call: {function_name} with "
-            f"arguments: {arguments}" + Style.RESET_ALL
+                                          f"arguments: {arguments}" + Style.RESET_ALL
         )
 
         self.logger.info(
@@ -216,8 +222,9 @@ class ChatService:
             if executor.get_executor_definition()["function"]["name"] == function_name:
                 return executor.exec(arguments)
 
-        self.logger.error(f"Function {function_name} not found.")
-        return f"Function {function_name} not found."
+        error_message = f"Function {function_name} not found."
+        self.logger.error(error_message)
+        raise FunctionNotFound(error_message)
 
     def print_stream_text(self, stream: Any) -> str:
         """

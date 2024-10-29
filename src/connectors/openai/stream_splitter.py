@@ -1,5 +1,8 @@
 from threading import Thread
-from typing import Any, Iterator, List
+from typing import Any, List
+
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+from openai._streaming import Stream
 
 
 class StreamSplitter:
@@ -12,7 +15,7 @@ class StreamSplitter:
     to the entire stream.
 
     Attributes:
-        stream (Iterator[Any]): The input data stream that will be processed.
+        stream (Stream[ChatCompletionChunk]): The input data stream that will be processed.
         chunks (List[Any]): A list to store the chunks of data as they are read from the stream.
         finished (bool): A flag indicating whether the reading of the stream has finished.
 
@@ -24,7 +27,7 @@ class StreamSplitter:
             consumers to access the same data in real-time.
     """
 
-    def __init__(self, stream: Iterator[Any]):
+    def __init__(self, stream: Stream[ChatCompletionChunk]):
         self.stream = stream
         self.chunks: List[Any] = []
         self.finished = False
@@ -39,7 +42,7 @@ class StreamSplitter:
 
         Thread(target=_read_stream, daemon=True).start()
 
-    def get(self) -> Iterator[Any]:
+    def get(self) -> Stream[ChatCompletionChunk]:
         """Yields items from the chunks list as they are read from the stream."""
         index = 0
         while not self.finished or index < len(self.chunks):

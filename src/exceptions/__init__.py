@@ -3,6 +3,7 @@ from .audio_transcription_failed import AudioTranscriptionFailed
 from .email_deletion_error import EmailDeletionError
 from .email_listing_error import EmailListingError
 from .email_not_found import EmailNotFound
+from .function_not_found import FunctionNotFound
 
 __all__ = [
     "AudioRecordingFailed",
@@ -10,4 +11,5 @@ __all__ = [
     "EmailNotFound",
     "EmailDeletionError",
     "EmailListingError",
+    "FunctionNotFound",
 ]
