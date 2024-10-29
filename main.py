@@ -158,59 +158,39 @@ if __name__ == "__main__":
     while True:
         try:
             if args.silent:
-                # Silent mode: Use text input/output
+                # Textmodus
                 user_input_text = input(
                     Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL
                 )
-
-                # Send user input to GPT and get response stream
-                stream = chat_service.ask_chat_gpt(
-                    user_input_text, conversation_history
-                )
-
-                # Print text stream output
+                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
                 chat_service.print_stream_text(stream)
 
             else:
-                # Non-silent mode: Use microphone for input and audio for output
-
-                # Start user input recording and saves the input into user_input_audio
+                # Sprachmodus
                 audio_service.play_sound("sent")
-                user_input_audio: AudioRecordResult = audio_service.record()
+                user_input_audio = audio_service.record()
                 audio_service.play_sound("sent")
 
-                # Handle silence timeout (3 seconds with no speech)
                 if user_input_audio.silence_timeout:
                     logger.info("No speech detected for 3 seconds. Exiting...")
                     audio_service.play_sound("standby")
-                    sys.exit()  # Exit the entire script
+                    sys.exit()
 
-                # Transcribe and print the AudioRecordResult using OpenAI's Whisper API
-                user_input_text: str = audio_service.transcribe_audio(
+                user_input_text = audio_service.transcribe_audio(
                     user_input_audio, user_language
                 )
-                formatted_user_input_text: str = (
-                    Fore.YELLOW
-                    + Style.BRIGHT
-                    + f"You: {user_input_text}"
-                    + Style.RESET_ALL
-                )
-                print(formatted_user_input_text)
-
-                # Stream the transcribed input to GPT and handle the response
-                stream = chat_service.ask_chat_gpt(
-                    user_input_text, conversation_history
+                print(
+                    Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
                 )
 
-                # Create a StreamSplitter to share the stream
+                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+
                 splitter = StreamSplitter(stream)
                 splitter.start()
 
-                # Start the threads for text and audio playback
                 text_output_thread = threading.Thread(
                     target=chat_service.print_stream_text, args=(splitter.get(),)
                 )
-
                 audio_output_thread = threading.Thread(
                     target=audio_service.play_stream_audio, args=(splitter.get(),)
                 )
@@ -218,9 +198,16 @@ if __name__ == "__main__":
                 text_output_thread.start()
                 audio_output_thread.start()
 
-                # Wait for both threads to complete
                 text_output_thread.join()
                 audio_output_thread.join()
 
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+            conversation_history.append(
+                {"role": "system",
+                 "content": f"Error encountered: {str(e)}. Interpret this for the user."}
+            )
+            error_stream = chat_service.ask_chat_gpt("Error Interpretation Request",
+                                                     conversation_history)
+            chat_service.print_stream_text(error_stream)
+
