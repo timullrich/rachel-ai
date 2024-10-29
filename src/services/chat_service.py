@@ -1,3 +1,11 @@
+"""
+This module provides the ChatService class for interacting with the OpenAI ChatGPT model.
+
+The ChatService class manages conversation history, handles user interactions, and streams
+responses from the model. It supports various methods for sending user inputs, formatting,
+and outputting responses.
+"""
+
 # Standard library imports
 import json
 import logging
@@ -6,13 +14,13 @@ from typing import Any, Dict, List, Optional
 
 # Third-party imports
 from colorama import Fore, Style
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from openai._streaming import Stream
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 # Local application imports
 from src.connectors import OpenAiConnector, StreamSplitter
-from src.executors import ExecutorInterface
 from src.exceptions import FunctionNotFound
+from src.executors import ExecutorInterface
 
 
 class ChatService:
@@ -67,7 +75,7 @@ class ChatService:
 
         # Logging for debugging
         self.logger.debug(
-            f"Printed formatted content: {content[:50]}..."
+            "Printed formatted content: %s...", content[:50]
         )  # Truncate long content
 
     def ask_chat_gpt(
@@ -84,8 +92,11 @@ class ChatService:
         Returns:
             Any: A streaming response from ChatGPT, which can either be normal text or
                     a function call result.
+
+        Raises:
+            FunctionNotFoundError: If no executor is found for the given function name.
         """
-        self.logger.info(f"Sending user input to GPT: {user_input}")
+        self.logger.info("Sending user input to GPT: %s", user_input)
         conversation_history.append({"role": "user", "content": user_input})
 
         # Stream GPT response
@@ -105,13 +116,13 @@ class ChatService:
         function_call_name = None
         function_call_arguments = ""
 
-        first_chunk:ChatCompletionChunk = next(splitter.get())
+        first_chunk: ChatCompletionChunk = next(splitter.get())
         choice = first_chunk.choices[0].delta
 
         # Check if it's a function call
         if hasattr(choice, "tool_calls") and choice.tool_calls is not None:
             self.logger.info(
-                f"Function call detected: {choice.tool_calls[0].function.name}"
+                "Function call detected: %s", choice.tool_calls[0].function.name
             )
 
             for chunk in splitter.get():
@@ -136,8 +147,8 @@ class ChatService:
             # Process the function call if detected
             if function_call_name:
                 self.logger.info(
-                    f"Executing function: {function_call_name} with "
-                    f"arguments: {function_call_arguments}"
+                    "Executing function: %s with arguments: %s", function_call_name,
+                    function_call_arguments
                 )
                 arguments = json.loads(function_call_arguments)
                 result = self.handle_function_call(function_call_name, arguments)
@@ -154,10 +165,10 @@ class ChatService:
                 )
                 if not executor:
                     self.logger.error(
-                        f"No executor found for function: {function_call_name}"
+                        "No executor found for function: %s", function_call_name
                     )
-                    raise Exception(
-                        f"No Executor found for function: {function_call_name}"
+                    raise FunctionNotFound(
+                        f"No executor found for function: {function_call_name}"
                     )
 
                 # Create the interpretation request for GPT
@@ -188,13 +199,12 @@ class ChatService:
                 )
                 return interpreted_stream
 
-        else:
-            # Normal content stream
-            self.logger.info("Returning normal content stream.")
-            return splitter.get()
+        # Normal content stream
+        self.logger.info("Returning normal content stream.")
+        return splitter.get()
 
     def handle_function_call(
-            self, function_name: str, arguments: Dict[str, Any]
+        self, function_name: str, arguments: Dict[str, Any]
     ) -> str:
         """
         Executes the corresponding function based on the function name provided by GPT.
@@ -211,11 +221,11 @@ class ChatService:
         """
         print(
             Fore.MAGENTA + Style.BRIGHT + f"Function call: {function_name} with "
-                                          f"arguments: {arguments}" + Style.RESET_ALL
+            f"arguments: {arguments}" + Style.RESET_ALL
         )
 
         self.logger.info(
-            f"Handling function call: {function_name} with arguments: {arguments}"
+            "Handling function call: %s with arguments: %s", function_name, arguments
         )
 
         for executor in self.executors:
@@ -250,7 +260,7 @@ class ChatService:
 
         print()  # adds linebreak at the end
         self.logger.debug(
-            f"Completed stream output. Total characters: {len(assistant_reply)}"
+            "Completed stream output. Total characters: %s", len(assistant_reply)
         )
 
         return assistant_reply
