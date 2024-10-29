@@ -16,5 +16,8 @@ class CoinGeckoConnector:
             Fetches OHLC data for a specific coin and time range.
     """
 
+    def __init__(self):
+        self.client = None
+
     def connect(self):
         self.client = CoinGeckoAPI()

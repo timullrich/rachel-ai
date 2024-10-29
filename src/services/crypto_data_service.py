@@ -22,6 +22,9 @@ class CryptoDataService:
     def __init__(self, connector: CoinGeckoConnector, user_language: str = "en"):
         self.connector = connector
         self.user_language = user_language
+
+        self.connector.connect()
+
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def get_ohlc(self, coin_id: str, vs_currency: str = "usd", days: int = 7):
@@ -40,3 +43,30 @@ class CryptoDataService:
         return self.connector.client.get_coin_ohlc_by_id(
             id=coin_id, vs_currency=vs_currency, days=days
         )
+
+    def get_market_data(self, coin_id: str, vs_currency: str = "usd") -> dict:
+        """
+        Fetches current market data for a specific cryptocurrency, including price, market cap,
+        and 24-hour trading volume.
+
+        Args:
+            coin_id (str): The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').
+            vs_currency (str): The reference currency (e.g., 'usd', 'eur'). Default is 'usd'.
+
+        Returns:
+            dict: A dictionary containing the current price, market cap, and 24-hour volume.
+        """
+        try:
+            # Abrufen der Marktdaten über den CoinGecko-Connector
+            data = self.connector.client.get_coin_by_id(id=coin_id, vs_currency=vs_currency)
+
+            # Extrahieren der relevanten Daten aus der API-Antwort
+            market_data = {
+                "current_price": data["market_data"]["current_price"].get(vs_currency),
+                "market_cap": data["market_data"]["market_cap"].get(vs_currency),
+                "volume_24h": data["market_data"]["total_volume"].get(vs_currency),
+            }
+            return market_data
+        except Exception as e:
+            self.logger.error(f"Error fetching market data for {coin_id}: {e}")
+            return {}
