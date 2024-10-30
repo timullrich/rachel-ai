@@ -1,3 +1,10 @@
+"""
+This module defines the CryptoDataExecutor class, which implements the ExecutorInterface to
+fetch cryptocurrency data, such as OHLC (Open, High, Low, Close) data and market data, for a
+specified cryptocurrency. The data can be retrieved in a specified reference currency and
+time range.
+"""
+
 from typing import Any, Dict
 
 from ._executor_interface import ExecutorInterface
@@ -21,9 +28,10 @@ class CryptoDataExecutor(ExecutorInterface):
             "function": {
                 "name": "crypto_data_operations",
                 "description": (
-                    f"Fetches OHLC (Open, High, Low, Close) data or market data for a specific cryptocurrency. "
-                    f"Supports 'ohlc' operation to retrieve OHLC data and 'market' operation to retrieve "
-                    f"current price, market cap, and 24-hour volume."
+                    "Fetches OHLC (Open, High, Low, Close) data or market data for a "
+                    "specific cryptocurrency. "
+                    "Supports 'ohlc' operation to retrieve OHLC data and 'market' "
+                    "operation to retrieve current price, market cap, and 24-hour volume."
                 ),
                 "parameters": {
                     "type": "object",
@@ -34,7 +42,8 @@ class CryptoDataExecutor(ExecutorInterface):
                         },
                         "coin_id": {
                             "type": "string",
-                            "description": "The ID of the cryptocurrency (e.g., 'bitcoin', 'ethereum').",
+                            "description": "The ID of the cryptocurrency "
+                                           "(e.g., 'bitcoin', 'ethereum').",
                         },
                         "vs_currency": {
                             "type": "string",
@@ -43,7 +52,8 @@ class CryptoDataExecutor(ExecutorInterface):
                         },
                         "days": {
                             "type": "integer",
-                            "description": "The number of days to fetch OHLC data for (e.g., 1, 7, 30). Only required for 'ohlc' operation.",
+                            "description": "The number of days to fetch OHLC data for "
+                                           "(e.g., 1, 7, 30). Only required for 'ohlc' operation.",
                             "default": 7,
                         },
                     },
@@ -61,44 +71,50 @@ class CryptoDataExecutor(ExecutorInterface):
         if not coin_id:
             return "Please provide a valid cryptocurrency coin ID."
 
+        result = ""
+
         try:
             if operation == "ohlc":
-                # Abrufen der OHLC-Daten
+                # get ohlc data
                 ohlc_data = self.crypto_data_service.get_ohlc(
                     coin_id=coin_id, vs_currency=vs_currency, days=days
                 )
                 if not ohlc_data:
-                    return f"No OHLC data found for {coin_id}."
-
-                # Formatieren der OHLC-Daten
-                formatted_data = "\n".join(
-                    [
-                        f"Date: {ohlc[0]}, Open: {ohlc[1]}, High: {ohlc[2]}, Low: {ohlc[3]}, Close: {ohlc[4]}"
-                        for ohlc in ohlc_data
-                    ]
-                )
-                return f"OHLC data for {coin_id} (last {days} days in {vs_currency}):\n{formatted_data}"
+                    result = f"No OHLC data found for {coin_id}."
+                else:
+                    # format ohlc data
+                    formatted_data = "\n".join(
+                        [
+                            f"Date: {ohlc[0]}, "
+                            f"Open: {ohlc[1]}, High: {ohlc[2]}, Low: {ohlc[3]}, Close: {ohlc[4]}"
+                            for ohlc in ohlc_data
+                        ]
+                    )
+                    result = f"OHLC data for " \
+                             f"{coin_id} (last {days} days in {vs_currency}):\n{formatted_data}"
 
             elif operation == "market":
-                # Abrufen der Marktdaten
+                # get market data
                 market_data = self.crypto_data_service.get_market_data(
                     coin_id=coin_id, vs_currency=vs_currency
                 )
                 if not market_data:
-                    return f"No market data found for {coin_id}."
-
-                # Formatieren der Marktdaten
-                return (
-                    f"Market data for {coin_id} in {vs_currency}:\n"
-                    f"Current Price: {market_data['current_price']}\n"
-                    f"Market Cap: {market_data['market_cap']}\n"
-                    f"24h Volume: {market_data['volume_24h']}"
-                )
+                    result = f"No market data found for {coin_id}."
+                else:
+                    # format market data
+                    result = (
+                        f"Market data for {coin_id} in {vs_currency}:\n"
+                        f"Current Price: {market_data['current_price']}\n"
+                        f"Market Cap: {market_data['market_cap']}\n"
+                        f"24h Volume: {market_data['volume_24h']}"
+                    )
             else:
-                return f"Invalid operation: {operation}"
+                result = f"Invalid operation: {operation}"
 
         except Exception as e:
-            return f"An error occurred while fetching data: {str(e)}"
+            result = f"An error occurred while fetching data: {str(e)}"
+
+        return result
 
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         return (

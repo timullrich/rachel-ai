@@ -1,3 +1,8 @@
+"""
+This module defines the WeatherExecutor class, which implements the ExecutorInterface
+to perform weather-related operations such as retrieving current weather and weather forecasts.
+"""
+
 import json
 from typing import Any, Dict
 
@@ -5,6 +10,17 @@ from ._executor_interface import ExecutorInterface
 
 
 class WeatherExecutor(ExecutorInterface):
+    """
+    Executor class for handling weather-related operations.
+
+    This class uses a weather service to fetch either the current weather or a forecast
+    for a specified city. Supported operations include 'get_weather' for the current
+    weather and 'get_forecast' for future weather predictions.
+
+    Attributes:
+        weather_service (WeatherService): The service used to interact with weather APIs.
+    """
+
     def __init__(self, weather_service):
         """
         Initializes the WeatherExecutor with the provided WeatherService.
@@ -27,14 +43,16 @@ class WeatherExecutor(ExecutorInterface):
                 "name": "weather_operations",
                 "description": (
                     "Performs weather operations. "
-                    "Supports 'get_weather' for current weather and 'get_forecast' for weather forecast."
+                    "Supports 'get_weather' for current weather and 'get_forecast' for "
+                    "weather forecast."
                 ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "operation": {
                             "type": "string",
-                            "description": "The weather operation to perform: 'get_weather', 'get_forecast'",
+                            "description": "The weather operation to perform: "
+                                           "'get_weather', 'get_forecast'",
                         },
                         "city_name": {
                             "type": "string",
@@ -42,7 +60,8 @@ class WeatherExecutor(ExecutorInterface):
                         },
                         "days_ahead": {
                             "type": "integer",
-                            "description": "Number of days ahead for the forecast (optional, default is 1).",
+                            "description": "Number of days ahead for the forecast "
+                                           "(optional, default is 1).",
                         },
                     },
                     "required": ["operation", "city_name"],
@@ -56,7 +75,8 @@ class WeatherExecutor(ExecutorInterface):
         Executes the requested weather operation.
 
         Args:
-            arguments (Dict[str, Any]): The operation, city name, and optional forecast days provided as input.
+            arguments (Dict[str, Any]): The operation, city name, and optional
+            forecast days provided as input.
 
         Returns:
             str: The result of the weather operation, either current weather or forecast data.
@@ -85,7 +105,8 @@ class WeatherExecutor(ExecutorInterface):
                 return weather_json
 
             except Exception as e:
-                return f"Error fetching forecast data for {city_name} (for {days_ahead} day(s)): {e}"
+                return f"Error fetching forecast data for {city_name} " \
+                       f"(for {days_ahead} day(s)): {e}"
 
         else:
             return f"Invalid operation: {operation}"
@@ -102,9 +123,11 @@ class WeatherExecutor(ExecutorInterface):
         """
         return (
             "Interpret the weather forecast in a clear, user-friendly format. "
-            "For general questions about the forecast (e.g., whether rain is expected), provide only a brief summary answer. "
-            "If the user asks for detailed information (like temperatures, humidity, or specific conditions for each day), include these details as requested. "
-            "Always use concise descriptions and avoid excessive details unless explicitly requested. "
-            "For multi-day forecasts, summarize key information instead of providing full daily reports unless the user specifically asks. "
+            "For general questions about the forecast (e.g., whether rain is expected), provide "
+            "only a brief summary answer. If the user asks for detailed information "
+            "(like temperatures, humidity, or specific conditions for each day), include these "
+            "details as requested. Always use concise descriptions and avoid excessive details "
+            "unless explicitly requested. For multi-day forecasts, summarize key information "
+            "instead of providing full daily reports unless the user specifically asks. "
             f"Always respond in the language '{user_language}'."
         )

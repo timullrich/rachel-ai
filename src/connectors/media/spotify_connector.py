@@ -1,3 +1,8 @@
+"""
+This module defines the SpotifyConnector class, which provides functionality for authenticating
+and connecting to the Spotify API to interact with user-specific data and playlists.
+"""
+
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -41,4 +46,4 @@ class SpotifyConnector(ConnectorInterface):
             )
             self.client = spotipy.Spotify(auth_manager=auth_manager)
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to Spotify API: {e}")
+            raise ConnectionError(f"Failed to connect to Spotify API: {e}") from e

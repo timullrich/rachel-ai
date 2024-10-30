@@ -1,8 +1,14 @@
+"""
+This module defines the StreamSplitter class, which splits an iterator-based data stream into
+chunks and allows multiple consumers to access the same data stream in real-time without directly
+consuming it from the source.
+"""
+
 from threading import Thread
 from typing import Any, List
 
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from openai._streaming import Stream
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
 
 class StreamSplitter:

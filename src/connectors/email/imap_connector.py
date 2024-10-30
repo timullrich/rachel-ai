@@ -1,3 +1,8 @@
+"""
+This module defines the ImapConnector class, which provides functionality for establishing
+and managing a secure connection to an IMAP server for receiving emails.
+"""
+
 from imapclient import IMAPClient
 
 from .._connector_interface import ConnectorInterface
@@ -31,4 +36,4 @@ class ImapConnector(ConnectorInterface):
         except Exception as e:
             raise ConnectionError(
                 f"Failed to connect or authenticate with IMAP server: {e}"
-            )
+            ) from e

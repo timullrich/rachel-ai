@@ -1,3 +1,8 @@
+"""
+This module defines the SmtpConnector class, which provides functionality for establishing
+and managing a secure connection to an SMTP server for sending emails.
+"""
+
 import smtplib
 
 from .._connector_interface import ConnectorInterface
@@ -25,9 +30,8 @@ class SmtpConnector(ConnectorInterface):
         try:
             server = smtplib.SMTP(self.smtp_server)
             server.login(self.smtp_user, self.smtp_password)
-
             return server
         except Exception as e:
             raise ConnectionError(
                 f"Failed to connect or authenticate with SMTP server: {e}"
-            )
+            ) from e

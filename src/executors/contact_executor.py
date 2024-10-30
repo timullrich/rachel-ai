@@ -1,9 +1,26 @@
+"""
+This module defines the ContactExecutor class, which implements the ExecutorInterface
+to perform operations on a contacts service. It supports listing all contacts or
+searching for contacts by name or email.
+"""
+
 from typing import Any, Dict
 
 from ._executor_interface import ExecutorInterface
 
 
 class ContactExecutor(ExecutorInterface):
+    """
+    A class to execute contact-related operations.
+
+    This class provides functionality to list all contacts or search for specific
+    contacts using a search string. It interacts with a contacts service to retrieve
+    and format contact information.
+
+    Attributes:
+        contacts_service: The service used to access and manipulate contact data.
+    """
+
     def __init__(self, contacts_service):
         self.contacts_service = contacts_service
 
@@ -51,7 +68,8 @@ class ContactExecutor(ExecutorInterface):
 
         return "\n".join(
             [
-                f"Name: {contact['name']}, Emails: {', '.join(contact['emails'])}, Phones: {', '.join(contact['phones'])}"
+                f"Name: {contact['name']}, Emails: "
+                f"{', '.join(contact['emails'])}, Phones: {', '.join(contact['phones'])}"
                 for contact in contacts
             ]
         )

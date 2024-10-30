@@ -1,3 +1,8 @@
+"""
+This module defines the AudioRecordResult class, which encapsulates the result of an audio
+recording operation, including the success status, recorded audio data, and silence timeout status.
+"""
+
 from typing import Optional
 
 import numpy as np

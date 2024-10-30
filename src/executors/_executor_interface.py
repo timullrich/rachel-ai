@@ -1,3 +1,9 @@
+"""
+This module defines the ExecutorInterface abstract base class, which provides a consistent
+interface for various executors that can be called by GPT commands. Executors implementing
+this interface may perform actions like command execution, email sending, or data retrieval.
+"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
@@ -13,7 +19,6 @@ class ExecutorInterface(ABC):
         """
         Returns the executor definition (function) that is passed to the OpenAI API.
         """
-        pass
 
     @abstractmethod
     def exec(self, arguments: Dict[str, Any]) -> str:
@@ -21,11 +26,9 @@ class ExecutorInterface(ABC):
         Executes the executer based on the arguments provided by GPT.
         Should return the result or raise an error if necessary.
         """
-        pass
 
     @abstractmethod
     def get_result_interpreter_instructions(self, user_language="en") -> str:
         """
         Returns instructions for GPT on how to interpret and present the result to the user.
         """
-        pass

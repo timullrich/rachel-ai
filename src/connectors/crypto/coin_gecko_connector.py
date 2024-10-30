@@ -1,3 +1,8 @@
+"""
+This module defines the CoinGeckoConnector class, which provides a connection to the CoinGecko API
+for retrieving cryptocurrency data such as OHLC prices.
+"""
+
 from pycoingecko import CoinGeckoAPI
 
 
@@ -5,11 +10,12 @@ class CoinGeckoConnector:
     """
     A connector class for interacting with the CoinGecko API.
 
-    This class is responsible for initializing a connection to the CoinGecko API and provides methods to
-    retrieve cryptocurrency data such as OHLC (Open, High, Low, Close) prices.
+    This class is responsible for initializing a connection to the CoinGecko API and provides
+    methods to retrieve cryptocurrency data such as OHLC (Open, High, Low, Close) prices.
 
     Attributes:
-        client (CoinGeckoAPI): The CoinGeckoAPI client used to make requests to CoinGecko's data services.
+        client (CoinGeckoAPI): The CoinGeckoAPI client used to make requests to CoinGecko's
+        data services.
 
     Methods:
         get_ohlc_data(coin_id: str, vs_currency: str, days: int):
@@ -20,4 +26,7 @@ class CoinGeckoConnector:
         self.client = None
 
     def connect(self):
+        """
+        Establishes a connection to the CoinGecko API by initializing the client.
+        """
         self.client = CoinGeckoAPI()
