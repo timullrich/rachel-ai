@@ -1,43 +1,102 @@
-# rachel-ai
-Script Collection for the Rachel AI project.
+
+# Rachel AI Project
+Script Collection for the Rachel AI assistant project, designed to manage various tasks through modular executors.
+
+## Project Overview
+
+Rachel AI is a versatile AI assistant project designed to perform a variety of tasks using custom executors.
+Each executor serves a specific function, such as weather retrieval, email management, and web scraping.
+Rachel AI leverages OpenAI’s API to interact and respond to user commands, making it a powerful tool for both
+personal and professional use.
+
+## Technical Architecture
+
+The project is structured in a modular manner:
+- **Executors**: Perform specific tasks. For example:
+    - `WeatherExecutor`: Retrieves weather information.
+    - `EmailExecutor`: Manages email operations such as sending, listing, and deleting emails.
+    - `WebScraperExecutor`: Scrapes web content for information retrieval.
+    - `CryptoDataExecutor`: Fetches cryptocurrency market data and trends.
+    - `SpotifyExecutor`: Interacts with Spotify API to manage playlists, search for tracks, and control playback.
+- **Connectors**: Interface with external APIs to fetch data. Key connectors include:
+    - `OpenAiConnector`: Connects with OpenAI's API for generating responses.
+    - `CoinGeckoConnector`: Connects to CoinGecko for cryptocurrency data.
+    - `SpotifyConnector`: Manages Spotify API connection for music and playback control.
+    - `ImapConnector` and `SmtpConnector`: Handle email operations by connecting to IMAP and SMTP servers.
+    - `OpenWeatherMapConnector`: Retrieves weather data from the OpenWeatherMap API.
+
+Each component communicates through well-defined interfaces, ensuring modularity and maintainability.
 
 ## Project Setup with Poetry
 
-This project uses [Poetry](https://python-poetry.org/) for dependency management and environment setup. Poetry simplifies package installation and ensures that all dependencies are managed consistently across environments.
+This project uses [Poetry](https://python-poetry.org/) for dependency management and environment setup. Poetry ensures
+consistent package management across environments.
 
 ### Prerequisites
 
-Before setting up the project, make sure you have Poetry installed. You can install Poetry using the following command:
+Ensure you have Poetry installed before proceeding. You can install it using:
 
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
+### System Dependencies
 
-### Sysytem dependencies
+Install the following system dependencies for a smooth setup:
 
-Please install:
-
-#### Debian Systems (e. G. Ubuntu, Raspbian):
+#### Debian-based Systems (e.g., Ubuntu, Raspbian)
 
 ```bash
 sudo apt-get update
-sudo apt-get install python3-dev portaudio19-dev
+sudo apt-get install python3-dev portaudio19-dev ffmpeg
 ```
 
-#### Description:
-- **`python3-dev`**: Contains the header files and development libraries required to compile native Python extensions.
-- **`portaudio19-dev`**: Contains the libraries and header files for **PortAudio**, which are required by the `sounddevice` library to handle audio input and output.
+**Dependency Descriptions**:
+- **`python3-dev`**: Contains header files and development libraries required to compile Python extensions.
+- **`portaudio19-dev`**: Provides the necessary components for the `sounddevice` library, which is used for audio processing.
+- **`ffmpeg`**: Required for handling audio processing within the project.
 
-After these dependencies are installed, you can set up the project as usual with `poetry install`.”:
+After installing system dependencies, set up the project with Poetry:
 
 ```bash
 poetry install
 ```
 
-Falls du auf weitere Probleme stößt, prüfe bitte die Fehlermeldungen und stelle sicher, dass alle benötigten Systembibliotheken installiert sind.
+If you encounter any issues, check error messages and ensure all system libraries are installed.
 
-### How to Use
+## Environment Variables
+
+This project uses environment variables for configuration. These should be defined in a `.env` file in the root directory.
+Here are the environment variables required:
+
+```plaintext
+PLATFORM=mac-os
+OPENAI_API_KEY=your-api-key
+PORCUPINE_ACCESS_KEY=your-api-key
+
+LOG_LEVEL=INFO
+USER_LANGUAGE=en
+SOUND_THEME=default
+
+USERNAME=your-name
+
+SMTP_SERVER=smtp.example.com"
+SMTP_USER=your-email@example.com
+SMTP_PASSWORD=your-password
+IMAP_SERVER=imap.example.com
+IMAP_USER=your-email@example.com
+IMAP_PASSWORD=your-password
+
+OPEN_WEATHER_MAP_API_KEY=your-open-weather-map-api-key
+
+SPOTIFY_CLIENT_ID=your_spotify_client_id
+SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+SPOTIFY_REDIRECT_URI=your_redirect_uri
+```
+
+**Note**: Ensure these environment variables are correctly set before running the application.
+
+## How to Use
 
 1. **Clone the repository**:
 
@@ -48,17 +107,17 @@ Falls du auf weitere Probleme stößt, prüfe bitte die Fehlermeldungen und stel
 
 2. **Install dependencies**:
 
-   After cloning the repository, install all required dependencies using Poetry:
+   After cloning, install all required dependencies:
 
    ```bash
    poetry install
    ```
 
-   This command will create a virtual environment and install all dependencies specified in the `pyproject.toml` file.
+   This command will create a virtual environment and install dependencies from the `pyproject.toml` file.
 
 3. **Activate the virtual environment**:
 
-   If you want to activate the virtual environment created by Poetry, use the following command:
+   To activate the Poetry-created environment, use:
 
    ```bash
    poetry shell
@@ -66,39 +125,70 @@ Falls du auf weitere Probleme stößt, prüfe bitte die Fehlermeldungen und stel
 
 4. **Run the project**:
 
-   After activating the virtual environment, you can run any Python script in the project as usual:
+   - **Silent Mode** (text input/output only):
 
-   ```bash
-   python your_script.py
-   ```
+     ```bash
+     python main.py --silent
+     ```
 
-### Adding Dependencies
+   - **Voice Mode** (with speech interaction):
 
-If you need to add new dependencies to the project, you can use the following command:
+     ```bash
+     python main.py
+     ```
+
+   This flexibility allows you to either interact with Rachel AI via text or use voice commands.
+
+## Adding Dependencies
+
+Add new dependencies using Poetry:
 
 ```bash
 poetry add <package_name>
 ```
 
-This will automatically update the `pyproject.toml` and `poetry.lock` files to include the new package.
+This command updates the `pyproject.toml` and `poetry.lock` files.
 
-### Deactivating the Environment
+## Deactivating the Environment
 
-To exit the Poetry shell (virtual environment), simply run:
+To exit the Poetry shell:
 
 ```bash
 exit
 ```
 
-### Manual installation of PyTorch
-If automatic installtion fails, install torch manually:
+## Manual Installation of PyTorch
+
+If automatic installation fails, install PyTorch manually:
 
 ```bash
 pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
 ```
 
-### Software needed on system
+## Example Usage
+
+Here’s an example of retrieving current weather data:
 
 ```bash
-sudo apt install ffmpeg
+poetry run python -m src.weather_executor --city_name "Berlin"
 ```
+
+This command fetches the current weather information for Berlin.
+
+## Testing and Troubleshooting
+
+Run unit tests to verify that executors and services function as expected:
+
+```bash
+poetry run pytest tests/
+```
+
+### Troubleshooting Tips
+- **Dependency Errors**: Re-run `poetry install` and verify all system dependencies are installed.
+- **Connection Issues**: Check that all API keys in the `.env` file are correct and active.
+- **Email and API Errors**: Ensure that email and other API configurations match expected formats.
+
+---
+
+This README provides the necessary information to set up, configure, and use the Rachel AI project. For further details,
+refer to the docstrings within each module.
