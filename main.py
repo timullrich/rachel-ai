@@ -1,3 +1,24 @@
+"""
+ChatGPT Assistant Script
+
+This script implements an interactive ChatGPT assistant that operates with both text and
+voice interaction modes. It configures various services, including Email, Weather, Spotify, and
+Crypto Data, and uses GPT to process user queries and generate responses. The application supports
+a silent mode (text-only) and a voice mode (audio).
+
+The script utilizes:
+- Logging for error tracking and debugging,
+- Environment variables to configure APIs and services,
+- Multiple third-party libraries, including Colorama and dotenv.
+
+Main functions:
+- setup_logging: Configures logging for the script.
+- format_and_print_content: Formats text for console output.
+- Main loop for silent and voice modes, including audio recording and playback.
+
+Author: Tim Ullrich
+"""
+
 import argparse
 import logging
 import os
@@ -19,7 +40,7 @@ from src.connectors import (
     SpotifyConnector,
     StreamSplitter,
 )
-from src.entities import AudioRecordResult
+
 from src.executors import (
     CommandExecutor,
     ContactExecutor,
@@ -41,11 +62,11 @@ from src.services import (
 )
 
 
-def setup_logging(log_level: str = "info") -> logging.Logger:
+def setup_logging(level: str = "info") -> logging.Logger:
     """Set up logging configuration."""
 
     # Convert the log_level string into the corresponding logging level
-    numeric_log_level = getattr(logging, log_level.upper(), logging.INFO)
+    numeric_log_level = getattr(logging, level.upper(), logging.INFO)
 
     logging.basicConfig(
         level=numeric_log_level,  # Dynamically set log level
@@ -55,15 +76,8 @@ def setup_logging(log_level: str = "info") -> logging.Logger:
             logging.StreamHandler(sys.stdout),  # Log output to the console
         ],
     )
-    logger = logging.getLogger(__name__)
-    return logger
-
-
-def format_and_print_content(self, content: str) -> None:
-    """Formats content for console output."""
-    formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
-    sys.stdout.write(formatted_content)
-    sys.stdout.flush()
+    configured_logger = logging.getLogger(__name__)
+    return configured_logger
 
 
 if __name__ == "__main__":
@@ -137,7 +151,7 @@ if __name__ == "__main__":
 
     # Register available task executors
     executors = [
-        CommandExecutor(user_language, platform),
+        CommandExecutor(platform, user_language),
         EmailExecutor(email_service, username),
         ContactExecutor(contacts_service),
         WeatherExecutor(weather_service),
@@ -158,7 +172,9 @@ if __name__ == "__main__":
                 user_input_text = input(
                     Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL
                 )
-                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+                stream = chat_service.ask_chat_gpt(
+                    user_input_text, conversation_history
+                )
                 chat_service.print_stream_text(stream)
 
             else:
@@ -176,10 +192,15 @@ if __name__ == "__main__":
                     user_input_audio, user_language
                 )
                 print(
-                    Fore.YELLOW + Style.BRIGHT + f"You: {user_input_text}" + Style.RESET_ALL
+                    Fore.YELLOW
+                    + Style.BRIGHT
+                    + f"You: {user_input_text}"
+                    + Style.RESET_ALL
                 )
 
-                stream = chat_service.ask_chat_gpt(user_input_text, conversation_history)
+                stream = chat_service.ask_chat_gpt(
+                    user_input_text, conversation_history
+                )
 
                 splitter = StreamSplitter(stream)
                 splitter.start()
@@ -198,12 +219,14 @@ if __name__ == "__main__":
                 audio_output_thread.join()
 
         except Exception as e:
-            logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+            logger.error("An unexpected error occurred: %s", e, exc_info=True)
             conversation_history.append(
-                {"role": "system",
-                 "content": f"Error encountered: {str(e)}. Interpret this for the user."}
+                {
+                    "role": "system",
+                    "content": f"Error encountered: {str(e)}. Interpret this for the user.",
+                }
             )
-            error_stream = chat_service.ask_chat_gpt("Error Interpretation Request",
-                                                     conversation_history)
+            error_stream = chat_service.ask_chat_gpt(
+                "Error Interpretation Request", conversation_history
+            )
             chat_service.print_stream_text(error_stream)
-
