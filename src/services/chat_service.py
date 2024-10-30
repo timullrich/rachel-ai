@@ -41,15 +41,18 @@ class ChatService:
                                                         assistant messages.
 
         Methods:
-            format_and_print_content(content: str) -> None:
-                Formats the given content with color and style for console output and prints it.
-
-            ask_chat_gpt(user_input: str, conversation_history: List[Dict[str, str]]) -> Any:
+            ask_chat_gpt(
+                user_input: str,
+                conversation_history: List[Dict[str, str]])
+                    -> Stream[ChatCompletionChunk]:
                 Sends user input to the OpenAI ChatGPT model and returns the streaming response.
 
-            print_stream_text(stream: Any) -> str:
+            print_stream_text(stream: Stream[ChatCompletionChunk]) -> str:
                 Continuously reads text content from a ChatGPT response stream and prints it
                 in real-time.
+
+            format_and_print_content(content: str) -> None:
+                Formats the given content with color and style for console output and prints it.
     """
 
     def __init__(
@@ -66,17 +69,6 @@ class ChatService:
         self.conversation_history: List[Dict[str, str]] = [
             {"role": "system", "content": "You are a helpful assistant."}
         ]
-
-    def format_and_print_content(self, content: str) -> None:
-        """Formats content for console output."""
-        formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
-        sys.stdout.write(formatted_content)
-        sys.stdout.flush()
-
-        # Logging for debugging
-        self.logger.debug(
-            "Printed formatted content: %s...", content[:50]
-        )  # Truncate long content
 
     def ask_chat_gpt(
         self, user_input: str, conversation_history: List[Dict[str, str]]
@@ -147,8 +139,9 @@ class ChatService:
             # Process the function call if detected
             if function_call_name:
                 self.logger.info(
-                    "Executing function: %s with arguments: %s", function_call_name,
-                    function_call_arguments
+                    "Executing function: %s with arguments: %s",
+                    function_call_name,
+                    function_call_arguments,
                 )
                 arguments = json.loads(function_call_arguments)
                 result = self.handle_function_call(function_call_name, arguments)
@@ -236,7 +229,7 @@ class ChatService:
         self.logger.error(error_message)
         raise FunctionNotFound(error_message)
 
-    def print_stream_text(self, stream: Any) -> str:
+    def print_stream_text(self, stream: Stream[ChatCompletionChunk]) -> str:
         """
         Prints text content from a ChatGPT stream continuously.
 
@@ -264,3 +257,14 @@ class ChatService:
         )
 
         return assistant_reply
+
+    def format_and_print_content(self, content: str) -> None:
+        """Formats content for console output."""
+        formatted_content: str = Fore.CYAN + Style.BRIGHT + content + Style.RESET_ALL
+        sys.stdout.write(formatted_content)
+        sys.stdout.flush()
+
+        # Logging for debugging
+        self.logger.debug(
+            "Printed formatted content: %s...", content[:50]
+        )  # Truncate long content
