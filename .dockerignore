@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.log
+.DS_Store
+.env
+.env-example
+.venv
+/.git
+/.gitignore
+/.cache
+/.idea
+app.log
+poetry.lock
+resources/audio/*
+resources/recordings/*

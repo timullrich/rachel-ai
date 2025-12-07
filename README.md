@@ -139,6 +139,28 @@ SPOTIFY_REDIRECT_URI=your_redirect_uri
 
    This flexibility allows you to either interact with Rachel AI via text or use voice commands.
 
+## Verwendung mit Docker Compose
+
+Falls du keine lokale Python-Umgebung verwenden möchtest, kannst du das Projekt über `docker compose` starten und `main.py` dort manuell ausführen. Das Image wird einmal gebaut (inkl. Systempakete und Python-Abhängigkeiten); danach startet es deutlich schneller.
+
+1. **Image bauen** (oder bei Code-/Dependency-Änderungen neu bauen):
+
+   ```bash
+   docker compose build app
+   ```
+
+2. **Starten** (lädt `.env`, mountet Code und `resources`, öffnet Shell):
+
+   ```bash
+   docker compose run --rm app
+   ```
+
+3. **Im Container ausführen**:
+
+   ```bash
+   python main.py            # oder: python main.py --silent
+   ```
+
 ## Adding Dependencies
 
 Add new dependencies using Poetry:
