@@ -1,55 +1,54 @@
 # 🗣️ Rachel AI Assistant
-Modularer Sprach- und Text-Assistent mit ausführbaren Tools (E-Mail, Wetter, Spotify, Krypto, Web-Scraping). Läuft komplett im Docker-Container – Host bleibt sauber.
+Modular voice/text assistant with executors for email, weather, Spotify, crypto, web scraping, and more. Runs entirely inside Docker to keep the host clean.
 
 ---
 
-## 🚀 Was du bekommst
-- 🧩 **Executors**: Wetter, E-Mail (IMAP/SMTP), Web-Scraper, Crypto, Spotify u.a.
-- 🔌 **Connectors**: OpenAI, CoinGecko, Spotify, IMAP/SMTP, OpenWeatherMap.
-- 🎛️ **Modi**: Voice-Mode mit Audio I/O oder Silent-Mode nur Text.
-- 🐳 **Container-Ready**: Dockerfile + Compose; keine lokale Python-Installation nötig.
+## 🚀 Highlights
+- 🧩 Executors for weather, email (IMAP/SMTP), web, crypto, Spotify
+- 🔌 Connectors for OpenAI, CoinGecko, Spotify, IMAP/SMTP, OpenWeatherMap
+- 🎛️ Modes: voice (audio I/O) and silent (text only)
+- 🐳 Docker-only workflow; no host Python setup required
 
 ---
 
-## 🧭 Architektur (kurz)
-| Baustein | Rolle | Beispiele |
-|----------|-------|-----------|
-| **Executors** | Fachlogik pro Domäne | `WeatherExecutor`, `EmailExecutor`, `WebScraperExecutor`, `CryptoDataExecutor`, `SpotifyExecutor` |
-| **Connectors** | API-Anbindung | `OpenAiConnector`, `CoinGeckoConnector`, `SpotifyConnector`, `ImapConnector`, `SmtpConnector`, `OpenWeatherMapConnector` |
-| **Entry** | Startpunkt | `main.py` (Voice/Silent) |
+## 🧭 Architecture (short)
+| Component | Role | Examples |
+|-----------|------|----------|
+| Executors | Domain logic | `WeatherExecutor`, `EmailExecutor`, `WebScraperExecutor`, `CryptoDataExecutor`, `SpotifyExecutor` |
+| Connectors | API access | `OpenAiConnector`, `CoinGeckoConnector`, `SpotifyConnector`, `ImapConnector`, `SmtpConnector`, `OpenWeatherMapConnector` |
+| Entry | Start point | `main.py` (voice/silent) |
 
 ---
 
-## ⚡ Quick Start (Docker-only)
-1. Repo holen  
+## ⚡ Quick Start (Docker only)
+1. Clone  
    ```bash
    git clone git@github.com:timullrich/rachel-ai.git
    cd rachel-ai
    ```
-2. `.env` aus Vorlage anlegen  
+2. Create `.env` from template  
    ```bash
    cp .env-example .env
-   # Werte einsetzen (siehe unten)
+   # fill in your keys/secrets
    ```
-3. Image bauen  
+3. Build image  
    ```bash
    docker compose build app
    ```
-4. Container-Shell starten  
+4. Start a container shell  
    ```bash
    docker compose run --rm app
    ```
-5. Im Container ausführen  
+5. Run inside the container  
    ```bash
-   python main.py --silent   # Text only
-   # oder
-   python main.py            # Voice mit Audio I/O
+   python main.py --silent   # text only
+   # or
+   python main.py            # voice with audio I/O
    ```
 
 ---
 
-## 🌍 Umgebungsvariablen (.env)
-Mindestens:
+## 🌍 Environment (.env)
 ```env
 PLATFORM=mac-os
 OPENAI_API_KEY=your-api-key
@@ -73,62 +72,62 @@ SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIFY_REDIRECT_URI=your_redirect_uri
 ```
-Geheimnisse bleiben außerhalb des Repos (`.env` ist in `.gitignore`/`.dockerignore`).
+Secrets stay out of Git (`.env` is ignored).
 
 ---
 
-## 🐳 Docker-Workflow
-- Build (bei Code- oder Dependency-Änderungen erneut):
+## 🐳 Docker workflow
+- Build (repeat after code/dependency changes):  
   ```bash
   docker compose build app
   ```
-- Arbeiten im Container:
+- Work inside:  
   ```bash
   docker compose run --rm app
-  # danach: python main.py oder python main.py --silent
+  python main.py --silent  # or python main.py
   ```
-- Volumes: Code + `resources` sind gemountet, Änderungen sind direkt sichtbar.
-- Base-Image: `python:3.12-slim` mit Systemdeps (PortAudio, FFmpeg) und Python-Abhängigkeiten aus `requirements.txt` (Torch CPU 2.2.2 inkl.).
+- Volumes: project code and `resources` are mounted; edits are live.
+- Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.2.2 included).
 
 ---
 
-## 📦 Dependency-Management
-- Single Source: `requirements.txt` (gepinnte Liste für Docker).
-- Neues Paket hinzufügen (im Container oder lokal):
+## 📦 Dependency management
+- Single source: `requirements.txt`.
+- To add a package (inside container or local venv):  
   ```bash
   pip install <pkg>
-  pip freeze | grep <pkg> >> requirements.txt   # oder manuell Version ergänzen
+  pip freeze | grep <pkg> >> requirements.txt   # or edit file to pin version
   ```
-- Torch ist bereits pinnt (`torch==2.2.2` via CPU-Index). Falls Installation hakt:
+- Torch already pinned (`torch==2.2.2` via CPU index). If install fails:  
   ```bash
   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
   ```
-- Nach Änderungen an `requirements.txt` neu bauen: `docker compose build app`.
+- Rebuild after dependency changes: `docker compose build app`.
 
 ---
 
-## 🧪 Tests & Troubleshooting
-- Tests (falls vorhanden):
+## 🧪 Tests & troubleshooting
+- Run tests (if present):  
   ```bash
   docker compose run --rm app python -m pytest tests/
   ```
-- Häufige Stolpersteine:
-  - **API-Keys**: `.env` prüfen; falsche SMTP/IMAP-Zugangsdaten führen zu Mail-Fehlern.
-  - **Audio/PortAudio**: Ist im Image enthalten; falls lokal nötig, entsprechend System-Pakete installieren.
-  - **Langsame Starts nach Dependency-Änderung**: `docker compose build app` neu ausführen.
+- Common issues:
+  - API keys: verify `.env`; wrong SMTP/IMAP creds cause mail failures.
+  - Audio/PortAudio: bundled in image; if running outside Docker, install system packages.
+  - Slow starts after dep changes: rebuild the image.
 
 ---
 
-## 🧭 Nützliche Commands
-- Silent-Mode:
+## 🧭 Handy commands
+- Silent mode:  
   ```bash
   docker compose run --rm app python main.py --silent
   ```
-- Voice-Mode:
+- Voice mode:  
   ```bash
   docker compose run --rm app python main.py
   ```
-- Wetter-Executor direkt:
+- Weather executor:  
   ```bash
   docker compose run --rm app python -m src.weather_executor --city_name "Berlin"
   ```
