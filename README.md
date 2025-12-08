@@ -1,5 +1,5 @@
 # 🗣️ Rachel AI Assistant
-Ein modularer Sprach- und Text-Assistent mit ausführbaren Tools (E-Mails, Wetter, Spotify, Krypto, Web-Scraping). Läuft lokal mit Poetry oder als Docker-Container.
+Modularer Sprach- und Text-Assistent mit ausführbaren Tools (E-Mail, Wetter, Spotify, Krypto, Web-Scraping). Läuft komplett im Docker-Container – Host bleibt sauber.
 
 ---
 
@@ -7,7 +7,7 @@ Ein modularer Sprach- und Text-Assistent mit ausführbaren Tools (E-Mails, Wette
 - 🧩 **Executors**: Wetter, E-Mail (IMAP/SMTP), Web-Scraper, Crypto, Spotify u.a.
 - 🔌 **Connectors**: OpenAI, CoinGecko, Spotify, IMAP/SMTP, OpenWeatherMap.
 - 🎛️ **Modi**: Voice-Mode mit Audio I/O oder Silent-Mode nur Text.
-- 🐳 **Container-Ready**: Dockerfile + Compose für reproduzierbare Runs.
+- 🐳 **Container-Ready**: Dockerfile + Compose; keine lokale Python-Installation nötig.
 
 ---
 
@@ -20,23 +20,30 @@ Ein modularer Sprach- und Text-Assistent mit ausführbaren Tools (E-Mails, Wette
 
 ---
 
-## ⚡ Quick Start
+## ⚡ Quick Start (Docker-only)
 1. Repo holen  
    ```bash
    git clone git@github.com:timullrich/rachel-ai.git
    cd rachel-ai
    ```
-2. `.env` anlegen (siehe „Umgebungsvariablen“).
-3. Wähle einen Run-Modus:
-   - **Docker Compose** (kein lokales Python nötig): siehe unten.
-   - **Poetry lokal**: System-Pakete + `poetry install`, siehe unten.
-4. Starten:
+2. `.env` aus Vorlage anlegen  
    ```bash
-   # Silent (Text only)
-   python main.py --silent
-
-   # Voice (Audio I/O)
-   python main.py
+   cp .env-example .env
+   # Werte einsetzen (siehe unten)
+   ```
+3. Image bauen  
+   ```bash
+   docker compose build app
+   ```
+4. Container-Shell starten  
+   ```bash
+   docker compose run --rm app
+   ```
+5. Im Container ausführen  
+   ```bash
+   python main.py --silent   # Text only
+   # oder
+   python main.py            # Voice mit Audio I/O
    ```
 
 ---
@@ -66,83 +73,64 @@ SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIFY_REDIRECT_URI=your_redirect_uri
 ```
-Halte geheime Werte aus dem Repo (siehe `.dockerignore`/`.gitignore`).
+Geheimnisse bleiben außerhalb des Repos (`.env` ist in `.gitignore`/`.dockerignore`).
 
 ---
 
-## 🐳 Run mit Docker Compose
-Kein lokales Python nötig; Code und `resources` werden ins Container-Workspace gemountet.
-
-1. Image bauen (bei Code/Dependency-Änderungen erneut):
-   ```bash
-   docker compose build app
-   ```
-2. Shell starten (lädt `.env`, TTY offen):
-   ```bash
-   docker compose run --rm app
-   ```
-3. Im Container ausführen:
-   ```bash
-   python main.py            # oder: python main.py --silent
-   ```
-
-Dockerfile enthält Systemdeps (PortAudio, FFmpeg) und Python-Abhängigkeiten aus `requirements.txt` (Torch CPU 2.2.2 inkl.).
-
----
-
-## 💻 Run lokal mit Poetry
-1. System-Pakete (Debian/Ubuntu):
-   ```bash
-   sudo apt-get update
-   sudo apt-get install python3-dev portaudio19-dev ffmpeg
-   ```
-2. Poetry installieren (falls fehlt):
-   ```bash
-   curl -sSL https://install.python-poetry.org | python3 -
-   ```
-3. Dependencies ziehen:
-   ```bash
-   poetry install
-   ```
-4. Shell aktivieren & starten:
-   ```bash
-   poetry shell
-   python main.py --silent   # oder python main.py
-   ```
+## 🐳 Docker-Workflow
+- Build (bei Code- oder Dependency-Änderungen erneut):
+  ```bash
+  docker compose build app
+  ```
+- Arbeiten im Container:
+  ```bash
+  docker compose run --rm app
+  # danach: python main.py oder python main.py --silent
+  ```
+- Volumes: Code + `resources` sind gemountet, Änderungen sind direkt sichtbar.
+- Base-Image: `python:3.12-slim` mit Systemdeps (PortAudio, FFmpeg) und Python-Abhängigkeiten aus `requirements.txt` (Torch CPU 2.2.2 inkl.).
 
 ---
 
 ## 📦 Dependency-Management
-- Primär: `pyproject.toml`/`poetry.lock` (`poetry add <pkg>`).
-- Docker-Build nutzt `requirements.txt` (gepinnte Liste, inkl. Torch). Bei neuen Dependencies nach Poetry-Änderungen die Datei synchron halten (`poetry export -f requirements.txt --without-hashes > requirements.txt`).
-- Falls Torch-Installation hakt:
+- Single Source: `requirements.txt` (gepinnte Liste für Docker).
+- Neues Paket hinzufügen (im Container oder lokal):
+  ```bash
+  pip install <pkg>
+  pip freeze | grep <pkg> >> requirements.txt   # oder manuell Version ergänzen
+  ```
+- Torch ist bereits pinnt (`torch==2.2.2` via CPU-Index). Falls Installation hakt:
   ```bash
   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
   ```
+- Nach Änderungen an `requirements.txt` neu bauen: `docker compose build app`.
 
 ---
 
 ## 🧪 Tests & Troubleshooting
 - Tests (falls vorhanden):
   ```bash
-  poetry run pytest tests/
+  docker compose run --rm app python -m pytest tests/
   ```
 - Häufige Stolpersteine:
-  - **Audio/PortAudio fehlt**: System-Pakete nachinstallieren (`portaudio19-dev`, `ffmpeg`).
   - **API-Keys**: `.env` prüfen; falsche SMTP/IMAP-Zugangsdaten führen zu Mail-Fehlern.
-  - **Docker-Langsamkeit**: bei großen Änderungen `docker compose build app` neu ausführen.
-  - **Dualer Dependency-Stand**: `pyproject` vs. `requirements.txt` synchronisieren.
+  - **Audio/PortAudio**: Ist im Image enthalten; falls lokal nötig, entsprechend System-Pakete installieren.
+  - **Langsame Starts nach Dependency-Änderung**: `docker compose build app` neu ausführen.
 
 ---
 
-## 🧭 Nützliche Beispiele
-- Silent-Mode lokal:
+## 🧭 Nützliche Commands
+- Silent-Mode:
   ```bash
-  python main.py --silent
+  docker compose run --rm app python main.py --silent
+  ```
+- Voice-Mode:
+  ```bash
+  docker compose run --rm app python main.py
   ```
 - Wetter-Executor direkt:
   ```bash
-  poetry run python -m src.weather_executor --city_name "Berlin"
+  docker compose run --rm app python -m src.weather_executor --city_name "Berlin"
   ```
 
 ---
