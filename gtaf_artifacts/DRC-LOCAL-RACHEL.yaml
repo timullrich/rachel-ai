@@ -1,0 +1,15 @@
+id: DRC-LOCAL-RACHEL
+revision: 1
+result: PERMITTED
+gtaf_ref:
+  version: "0.1"
+scope: local:rachel
+valid_from: "2025-01-01T00:00:00Z"
+valid_until: "2030-01-01T00:00:00Z"
+refs:
+  sb:
+    - SB-LOCAL-RACHEL
+  dr:
+    - DR-COMMAND-EXEC
+  rb:
+    - RB-TIM-LOCAL

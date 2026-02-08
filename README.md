@@ -71,8 +71,69 @@ OPEN_WEATHER_MAP_API_KEY=your-open-weather-map-api-key
 SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIFY_REDIRECT_URI=your_redirect_uri
+
+GTAF_ARTIFACT_DIR=/app/gtaf_artifacts
+GTAF_SCOPE=local:rachel
+GTAF_COMPONENT=chat-service
+GTAF_INTERFACE=tool-calls
+GTAF_SYSTEM=rachel-local-agent
 ```
 Secrets stay out of Git (`.env` is ignored).
+
+### GTAF artifacts
+Place evaluated GTAF artifacts in `gtaf_artifacts/`:
+- `SB-LOCAL-RACHEL.yaml`
+- `DR-COMMAND-EXEC.yaml`
+- `RB-TIM-LOCAL.yaml`
+- `DRC-LOCAL-RACHEL.yaml`
+
+If artifacts are missing/invalid, tool execution is denied (fail-safe).
+
+### GTAF runtime enforcement
+Tool calls are intercepted in `ChatService` before any executor runs:
+
+```text
+User Prompt -> LLM Tool Call -> GTAF enforce() -> EXECUTE | DENY -> Executor / Refusal
+```
+
+- Executors stay unchanged.
+- Enforcement is centralized and deterministic.
+- `DENY` returns a deterministic `reason_code` (e.g. `DR_MISMATCH`).
+
+Action mapping (for policy matching):
+- `execute_command` -> `execute_command:<category>`
+- current categories: `process_info`, `filesystem_read`, `filesystem_write`, `network`,
+  `system_control`, `unknown`
+- unknown actions are safely denied if no matching DR decision exists.
+
+Quick local validation:
+1. Start app:
+   ```bash
+   docker compose run --rm app python main.py --silent
+   ```
+2. Allowed example:
+   - Prompt: `Wie spät ist es?`
+   - Expected: `GTAF EXECUTE: execute_command:process_info`
+3. Denied example:
+   - Prompt: `Lösche bitte die Datei test.txt`
+   - Expected: `GTAF DENY: execute_command:filesystem_write reason=DR_MISMATCH`
+   - Expected user-facing response: refusal, action not delegated.
+
+Common GTAF reason codes:
+
+| Reason code | Meaning |
+|---|---|
+| `OK` | Action is permitted and execution continues. |
+| `DR_MISMATCH` | Action does not match any delegated decision in DR artifacts. |
+| `DRC_NOT_PERMITTED` | DRC result is not `PERMITTED`. |
+| `MISSING_REFERENCE` | Referenced SB/DR/RB artifact is missing. |
+| `EXPIRED` | DRC or referenced artifact is outside validity window. |
+| `SCOPE_LEAK` | Scope mismatch between context and artifacts. |
+| `OUTSIDE_SB` | Component/interface is outside the defined system boundary. |
+| `RB_REQUIRED` | Delegation mode requires active RB, but no active RB exists. |
+| `INVALID_DRC_SCHEMA` | DRC structure is invalid. |
+| `UNSUPPORTED_GTAF_VERSION` | DRC GTAF reference version is unsupported by runtime. |
+| `INTERNAL_ERROR` | Runtime failed internally and denied fail-safe. |
 
 ---
 
@@ -88,6 +149,7 @@ Secrets stay out of Git (`.env` is ignored).
   ```
 - Volumes: project code and `resources` are mounted; edits are live.
 - Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.2.2 included).
+- Local plugin support: if `gtaf-runtime` exists at `/Users/timullrich/Development/TNT Intelligence/gtaf-runtime`, it is mounted to `/opt/plugins/gtaf-runtime` and installed automatically (`pip install`) on container start.
 
 ---
 
@@ -109,7 +171,7 @@ Secrets stay out of Git (`.env` is ignored).
 ## 🧪 Tests & troubleshooting
 - Run tests (if present):  
   ```bash
-  docker compose run --rm app python -m pytest tests/
+  docker compose run --rm app python -m unittest discover -s tests -p 'test_*.py' -v
   ```
 - Common issues:
   - API keys: verify `.env`; wrong SMTP/IMAP creds cause mail failures.

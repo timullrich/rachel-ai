@@ -50,6 +50,7 @@ from src.executors import (
     WeatherExecutor,
     WebScraperExecutor,
 )
+from src.gtaf import GtafRuntimeClient, GtafRuntimeConfig
 from src.services import (
     AudioService,
     ChatService,
@@ -99,6 +100,13 @@ if __name__ == "__main__":
     sound_theme: str = os.getenv("SOUND_THEME", "default")
 
     username: str = os.getenv("USERNAME")
+    gtaf_artifact_dir: str = os.getenv(
+        "GTAF_ARTIFACT_DIR", f"{script_dir}/gtaf_artifacts"
+    )
+    gtaf_scope: str = os.getenv("GTAF_SCOPE", "local:rachel")
+    gtaf_component: str = os.getenv("GTAF_COMPONENT", "chat-service")
+    gtaf_interface: str = os.getenv("GTAF_INTERFACE", "tool-calls")
+    gtaf_system: str = os.getenv("GTAF_SYSTEM", "rachel-local-agent")
 
     # Configure logging
     logger: logging.Logger = setup_logging(log_level)
@@ -161,8 +169,31 @@ if __name__ == "__main__":
     ]
 
     # chat service needs to be initialized after the executors
+    gtaf_config = GtafRuntimeConfig(
+        artifact_dir=gtaf_artifact_dir,
+        scope=gtaf_scope,
+        component=gtaf_component,
+        interface=gtaf_interface,
+        system=gtaf_system,
+        default_user=username or "unknown",
+    )
+    gtaf_runtime_client = GtafRuntimeClient(config=gtaf_config)
+    warmup_decision = gtaf_runtime_client.warmup()
+    if warmup_decision.outcome == "DENY":
+        logger.error(
+            "GTAF warmup failed: reason=%s details=%s",
+            warmup_decision.reason_code,
+            warmup_decision.details,
+        )
+    else:
+        logger.info("GTAF warmup successful: reason=%s", warmup_decision.reason_code)
+
     chat_service = ChatService(
-        open_ai_connector, user_language=user_language, executors=executors
+        open_ai_connector,
+        user_language=user_language,
+        executors=executors,
+        gtaf_runtime_client=gtaf_runtime_client,
+        gtaf_context_defaults={"user": username or "unknown"},
     )
 
     while True:
@@ -173,7 +204,7 @@ if __name__ == "__main__":
                     Fore.YELLOW + Style.BRIGHT + "You: " + Style.RESET_ALL
                 )
                 stream = chat_service.ask_chat_gpt(
-                    user_input_text, conversation_history
+                    user_input_text, conversation_history, mode="text"
                 )
                 chat_service.print_stream_text(stream)
 
@@ -199,7 +230,7 @@ if __name__ == "__main__":
                 )
 
                 stream = chat_service.ask_chat_gpt(
-                    user_input_text, conversation_history
+                    user_input_text, conversation_history, mode="voice"
                 )
 
                 splitter = StreamSplitter(stream)
@@ -227,6 +258,6 @@ if __name__ == "__main__":
                 }
             )
             error_stream = chat_service.ask_chat_gpt(
-                "Error Interpretation Request", conversation_history
+                "Error Interpretation Request", conversation_history, mode="text"
             )
             chat_service.print_stream_text(error_stream)

@@ -2,11 +2,13 @@ services:
   app:
     build: .
     working_dir: /app
+    entrypoint: ["/app/scripts/docker-entrypoint.sh"]
     command: ["/bin/bash"]
     env_file:
       - .env
     volumes:
       - .:/app
       - ./resources:/app/resources
+      - "/Users/timullrich/Development/TNT Intelligence/gtaf-runtime:/opt/plugins/gtaf-runtime"
     stdin_open: true
     tty: true

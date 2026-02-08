@@ -1,0 +1,14 @@
+id: DR-COMMAND-EXEC
+scope: local:rachel
+valid_from: "2025-01-01T00:00:00Z"
+valid_until: "2030-01-01T00:00:00Z"
+delegation_mode: AUTONOMOUS
+decisions:
+  - execute_command:process_info
+  - weather_operations:get_weather
+  - weather_operations:get_forecast
+  - contact_operations:list
+  - contact_operations:search
+  - crypto_data_operations:market
+  - crypto_data_operations:ohlc
+  - generic_web_scraping

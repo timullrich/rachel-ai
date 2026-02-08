@@ -10,6 +10,7 @@ and outputting responses.
 import json
 import logging
 import sys
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 # Third-party imports
@@ -21,6 +22,16 @@ from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from src.connectors import OpenAiConnector, StreamSplitter
 from src.exceptions import FunctionNotFound
 from src.executors import ExecutorInterface
+from src.gtaf.action_mapper import build_action_id
+from src.gtaf.runtime_client import GtafRuntimeClient
+
+
+@dataclass(frozen=True)
+class FunctionCallOutcome:
+    result: str
+    executor: ExecutorInterface
+    denied: bool
+    reason_code: Optional[str] = None
 
 
 class ChatService:
@@ -60,18 +71,23 @@ class ChatService:
         openai_connector: OpenAiConnector,
         user_language="en",
         executors: Optional[List[ExecutorInterface]] = None,
+        gtaf_runtime_client: Optional[GtafRuntimeClient] = None,
+        gtaf_context_defaults: Optional[Dict[str, str]] = None,
     ):
         self.openai_connector: OpenAiConnector = openai_connector
         self.openai_connector.connect()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.user_language = user_language
-        self.executors: List[ExecutorInterface] = executors
+        self.executors: List[ExecutorInterface] = executors or []
+        self.gtaf_runtime_client = gtaf_runtime_client
+        self.gtaf_context_defaults = gtaf_context_defaults or {}
+        self.current_mode = "text"
         self.conversation_history: List[Dict[str, str]] = [
             {"role": "system", "content": "You are a helpful assistant."}
         ]
 
     def ask_chat_gpt(
-        self, user_input: str, conversation_history: List[Dict[str, str]]
+        self, user_input: str, conversation_history: List[Dict[str, str]], mode: str = "text"
     ) -> Stream[ChatCompletionChunk]:
         """
         Sends user input to the OpenAI ChatGPT model and processes the streaming response.
@@ -89,6 +105,7 @@ class ChatService:
             FunctionNotFoundError: If no executor is found for the given function name.
         """
         self.logger.info("Sending user input to GPT: %s", user_input)
+        self.current_mode = mode
         conversation_history.append({"role": "user", "content": user_input})
 
         # Stream GPT response
@@ -144,38 +161,34 @@ class ChatService:
                     function_call_arguments,
                 )
                 arguments = json.loads(function_call_arguments)
-                result = self.handle_function_call(function_call_name, arguments)
-
-                # Fetch the appropriate executor
-                executor = next(
-                    (
-                        e
-                        for e in self.executors
-                        if e.get_executor_definition()["function"]["name"]
-                        == function_call_name
-                    ),
-                    None,
-                )
-                if not executor:
-                    self.logger.error(
-                        "No executor found for function: %s", function_call_name
-                    )
-                    raise FunctionNotFound(
-                        f"No executor found for function: {function_call_name}"
-                    )
+                outcome = self.handle_function_call(function_call_name, arguments)
 
                 # Create the interpretation request for GPT
-                conversation_history.append({"role": "system", "content": result})
+                conversation_history.append({"role": "system", "content": outcome.result})
 
-                # Maybe too much....
-                conversation_history.append(
-                    {
-                        "role": "system",
-                        "content": executor.get_result_interpreter_instructions(
-                            user_language=self.user_language
-                        ),
-                    }
-                )
+                if outcome.denied:
+                    conversation_history.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "The last tool call was denied by GTAF governance enforcement. "
+                                f"Reason code: {outcome.reason_code}. "
+                                "Explain briefly and clearly that the action is not delegated "
+                                "and therefore was not executed. Keep the answer concise and "
+                                "natural. In German voice conversations, include a clear refusal "
+                                "like 'Zugriff verweigert'."
+                            ),
+                        }
+                    )
+                else:
+                    conversation_history.append(
+                        {
+                            "role": "system",
+                            "content": outcome.executor.get_result_interpreter_instructions(
+                                user_language=self.user_language
+                            ),
+                        }
+                    )
 
                 interpretation_request = {
                     "model": "gpt-4o-mini",
@@ -198,7 +211,7 @@ class ChatService:
 
     def handle_function_call(
         self, function_name: str, arguments: Dict[str, Any]
-    ) -> str:
+    ) -> FunctionCallOutcome:
         """
         Executes the corresponding function based on the function name provided by GPT.
 
@@ -221,13 +234,60 @@ class ChatService:
             "Handling function call: %s with arguments: %s", function_name, arguments
         )
 
+        executor = self._find_executor(function_name)
+
+        if self.gtaf_runtime_client is not None:
+            action = build_action_id(function_name, arguments)
+            context = dict(self.gtaf_context_defaults)
+            context["mode"] = self.current_mode
+            decision = self.gtaf_runtime_client.enforce(action=action, context=context)
+            self._log_gtaf_decision(action, decision.outcome, decision.reason_code)
+
+            if decision.outcome == "DENY":
+                denial_message = (
+                    f"GTAF_DENY:{decision.reason_code}. "
+                    "Error: Action denied by governance policy and was not executed."
+                )
+                return FunctionCallOutcome(
+                    result=denial_message,
+                    executor=executor,
+                    denied=True,
+                    reason_code=decision.reason_code,
+                )
+
+        return FunctionCallOutcome(
+            result=executor.exec(arguments),
+            executor=executor,
+            denied=False,
+        )
+
+    def _find_executor(self, function_name: str) -> ExecutorInterface:
         for executor in self.executors:
             if executor.get_executor_definition()["function"]["name"] == function_name:
-                return executor.exec(arguments)
+                return executor
 
         error_message = f"Function {function_name} not found."
         self.logger.error(error_message)
         raise FunctionNotFound(error_message)
+
+    def _log_gtaf_decision(self, action: str, outcome: str, reason_code: str) -> None:
+        if outcome == "EXECUTE":
+            print(
+                Fore.GREEN
+                + Style.BRIGHT
+                + f"GTAF EXECUTE: {action}"
+                + Style.RESET_ALL
+            )
+            self.logger.info("GTAF EXECUTE action=%s", action)
+            return
+
+        print(
+            Fore.RED
+            + Style.BRIGHT
+            + f"GTAF DENY: {action} reason={reason_code}"
+            + Style.RESET_ALL
+        )
+        self.logger.error("GTAF DENY action=%s reason=%s", action, reason_code)
 
     def print_stream_text(self, stream: Stream[ChatCompletionChunk]) -> str:
         """

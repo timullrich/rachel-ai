@@ -1,0 +1,9 @@
+id: SB-LOCAL-RACHEL
+scope: local:rachel
+valid_from: "2025-01-01T00:00:00Z"
+valid_until: "2030-01-01T00:00:00Z"
+included_components:
+  - chat-service
+excluded_components: []
+allowed_interfaces:
+  - tool-calls
