@@ -97,12 +97,29 @@ class FakeGtafClient:
 
 
 class TestChatServiceGtaf(unittest.TestCase):
+    def test_missing_gtaf_client_fails_closed(self):
+        executor = FakeExecutor()
+        chat_service = ChatService(
+            openai_connector=FakeOpenAiConnector(),
+            executors=[executor],
+            gtaf_runtime_client=None,
+        )
+
+        outcome = chat_service.handle_function_call(
+            "execute_command", {"command": "date"}
+        )
+
+        self.assertTrue(outcome.denied)
+        self.assertIn("GTAF_DENY:GTAF_CLIENT_MISSING", outcome.result)
+        self.assertEqual([], outcome.refs)
+        self.assertFalse(executor.called)
+
     def test_deny_blocks_executor(self):
         executor = FakeExecutor()
         chat_service = ChatService(
             openai_connector=FakeOpenAiConnector(),
             executors=[executor],
-            gtaf_runtime_client=FakeGtafClient("DENY", "DRC_NOT_PERMITTED"),
+            gtaf_runtime_client=FakeGtafClient("DENY", "SDK_ARTIFACT_NOT_FOUND"),
         )
 
         outcome = chat_service.handle_function_call(
@@ -110,7 +127,9 @@ class TestChatServiceGtaf(unittest.TestCase):
         )
 
         self.assertTrue(outcome.denied)
-        self.assertIn("GTAF_DENY:DRC_NOT_PERMITTED", outcome.result)
+        self.assertIn("GTAF_DENY:SDK_ARTIFACT_NOT_FOUND", outcome.result)
+        self.assertIn("refs=[]", outcome.result)
+        self.assertEqual([], outcome.refs)
         self.assertFalse(executor.called)
 
     def test_execute_runs_executor(self):

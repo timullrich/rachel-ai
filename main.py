@@ -100,8 +100,11 @@ if __name__ == "__main__":
     sound_theme: str = os.getenv("SOUND_THEME", "default")
 
     username: str = os.getenv("USERNAME")
-    gtaf_artifact_dir: str = os.getenv(
-        "GTAF_ARTIFACT_DIR", f"{script_dir}/gtaf_artifacts"
+    gtaf_drc_path: str = os.getenv(
+        "GTAF_DRC_PATH", f"{script_dir}/gtaf_artifacts/drc.json"
+    )
+    gtaf_artifacts_dir: str = os.getenv(
+        "GTAF_ARTIFACTS_DIR", f"{script_dir}/gtaf_artifacts"
     )
     gtaf_scope: str = os.getenv("GTAF_SCOPE", "local:rachel")
     gtaf_component: str = os.getenv("GTAF_COMPONENT", "chat-service")
@@ -170,7 +173,8 @@ if __name__ == "__main__":
 
     # chat service needs to be initialized after the executors
     gtaf_config = GtafRuntimeConfig(
-        artifact_dir=gtaf_artifact_dir,
+        drc_path=gtaf_drc_path,
+        artifacts_dir=gtaf_artifacts_dir,
         scope=gtaf_scope,
         component=gtaf_component,
         interface=gtaf_interface,
@@ -178,15 +182,15 @@ if __name__ == "__main__":
         default_user=username or "unknown",
     )
     gtaf_runtime_client = GtafRuntimeClient(config=gtaf_config)
-    warmup_decision = gtaf_runtime_client.warmup()
-    if warmup_decision.outcome == "DENY":
+    warmup_result = gtaf_runtime_client.warmup()
+    if not warmup_result.ok:
         logger.error(
-            "GTAF warmup failed: reason=%s details=%s",
-            warmup_decision.reason_code,
-            warmup_decision.details,
+            "GTAF warmup failed: errors=%s meta=%s",
+            [issue.code for issue in warmup_result.errors],
+            warmup_result.meta,
         )
     else:
-        logger.info("GTAF warmup successful: reason=%s", warmup_decision.reason_code)
+        logger.info("GTAF warmup successful")
 
     chat_service = ChatService(
         open_ai_connector,

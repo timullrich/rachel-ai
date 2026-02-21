@@ -1,0 +1,7 @@
+{
+  "id": "RB-TIM-LOCAL",
+  "scope": "local:rachel",
+  "valid_from": "2025-01-01T00:00:00Z",
+  "valid_until": "2030-01-01T00:00:00Z",
+  "active": true
+}

@@ -1,9 +1,13 @@
 Place evaluated GTAF artifacts here for local runtime enforcement.
 
 Expected files:
-- SB-LOCAL-RACHEL.yaml
-- DR-COMMAND-EXEC.yaml
-- RB-TIM-LOCAL.yaml
-- DRC-LOCAL-RACHEL.yaml
+- drc.json
+- sb/SB-LOCAL-RACHEL.json
+- dr/DR-COMMAND-EXEC.json
+- rb/RB-TIM-LOCAL.json
 
-These artifacts are consumed read-only by the runtime gate.
+Layout notes:
+- JSON only (no YAML)
+- SDK loader resolves references by category (`sb`, `dr`, `rb`) from subfolders.
+- `drc.json` references artifact IDs in `refs`.
+- artifact filenames are `<artifact_id>.json`.

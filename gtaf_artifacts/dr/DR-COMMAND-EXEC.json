@@ -1,0 +1,19 @@
+{
+  "id": "DR-COMMAND-EXEC",
+  "scope": "local:rachel",
+  "valid_from": "2025-01-01T00:00:00Z",
+  "valid_until": "2030-01-01T00:00:00Z",
+  "delegation_mode": "AUTONOMOUS",
+  "decisions": [
+    "execute_command.date",
+    "execute_command.whoami",
+    "execute_command.uname",
+    "execute_command.ps",
+    "execute_command.top",
+    "execute_command.pgrep",
+    "weather_operations",
+    "contact_operations",
+    "crypto_data_operations",
+    "generic_web_scraping"
+  ]
+}

@@ -10,5 +10,6 @@ services:
       - .:/app
       - ./resources:/app/resources
       - "/Users/timullrich/Development/TNT Intelligence/gtaf-runtime:/opt/plugins/gtaf-runtime"
+      - "/Users/timullrich/Development/TNT Intelligence/gtaf-sdk-py:/opt/plugins/gtaf-sdk-py"
     stdin_open: true
     tty: true

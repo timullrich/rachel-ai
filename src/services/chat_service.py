@@ -32,6 +32,7 @@ class FunctionCallOutcome:
     executor: ExecutorInterface
     denied: bool
     reason_code: Optional[str] = None
+    refs: Optional[List[str]] = None
 
 
 class ChatService:
@@ -236,24 +237,38 @@ class ChatService:
 
         executor = self._find_executor(function_name)
 
-        if self.gtaf_runtime_client is not None:
-            action = build_action_id(function_name, arguments)
-            context = dict(self.gtaf_context_defaults)
-            context["mode"] = self.current_mode
-            decision = self.gtaf_runtime_client.enforce(action=action, context=context)
-            self._log_gtaf_decision(action, decision.outcome, decision.reason_code)
-
-            if decision.outcome == "DENY":
-                denial_message = (
-                    f"GTAF_DENY:{decision.reason_code}. "
+        if self.gtaf_runtime_client is None:
+            self.logger.error("GTAF DENY action=%s reason=%s refs=%s", "unknown", "GTAF_CLIENT_MISSING", [])
+            return FunctionCallOutcome(
+                result=(
+                    "GTAF_DENY:GTAF_CLIENT_MISSING refs=[]. "
                     "Error: Action denied by governance policy and was not executed."
-                )
-                return FunctionCallOutcome(
-                    result=denial_message,
-                    executor=executor,
-                    denied=True,
-                    reason_code=decision.reason_code,
-                )
+                ),
+                executor=executor,
+                denied=True,
+                reason_code="GTAF_CLIENT_MISSING",
+                refs=[],
+            )
+
+        action = build_action_id(function_name, arguments)
+        context = dict(self.gtaf_context_defaults)
+        context["mode"] = self.current_mode
+        decision = self.gtaf_runtime_client.enforce(action=action, context=context)
+        decision_refs = list(getattr(decision, "refs", []) or [])
+        self._log_gtaf_decision(action, decision.outcome, decision.reason_code, decision_refs)
+
+        if decision.outcome == "DENY":
+            denial_message = (
+                f"GTAF_DENY:{decision.reason_code} refs={decision_refs}. "
+                "Error: Action denied by governance policy and was not executed."
+            )
+            return FunctionCallOutcome(
+                result=denial_message,
+                executor=executor,
+                denied=True,
+                reason_code=decision.reason_code,
+                refs=decision_refs,
+            )
 
         return FunctionCallOutcome(
             result=executor.exec(arguments),
@@ -270,7 +285,9 @@ class ChatService:
         self.logger.error(error_message)
         raise FunctionNotFound(error_message)
 
-    def _log_gtaf_decision(self, action: str, outcome: str, reason_code: str) -> None:
+    def _log_gtaf_decision(
+        self, action: str, outcome: str, reason_code: str, refs: Optional[List[str]] = None
+    ) -> None:
         if outcome == "EXECUTE":
             print(
                 Fore.GREEN
@@ -284,10 +301,10 @@ class ChatService:
         print(
             Fore.RED
             + Style.BRIGHT
-            + f"GTAF DENY: {action} reason={reason_code}"
+            + f"GTAF DENY: {action} reason={reason_code} refs={refs or []}"
             + Style.RESET_ALL
         )
-        self.logger.error("GTAF DENY action=%s reason=%s", action, reason_code)
+        self.logger.error("GTAF DENY action=%s reason=%s refs=%s", action, reason_code, refs or [])
 
     def print_stream_text(self, stream: Stream[ChatCompletionChunk]) -> str:
         """

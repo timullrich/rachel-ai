@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLUGIN_PATH="/opt/plugins/gtaf-runtime"
+RUNTIME_PATH="/opt/plugins/gtaf-runtime"
+SDK_PATH="/opt/plugins/gtaf-sdk-py"
 
-if [ -d "$PLUGIN_PATH" ]; then
-  pip install "$PLUGIN_PATH" >/tmp/gtaf-runtime-install.log 2>&1 || {
+if [ -d "$RUNTIME_PATH" ]; then
+  pip install -e "$RUNTIME_PATH" >/tmp/gtaf-runtime-install.log 2>&1 || {
     cat /tmp/gtaf-runtime-install.log
+    exit 1
+  }
+fi
+
+if [ -d "$SDK_PATH" ]; then
+  pip install -e "$SDK_PATH" --no-deps >/tmp/gtaf-sdk-install.log 2>&1 || {
+    cat /tmp/gtaf-sdk-install.log
     exit 1
   }
 fi

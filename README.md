@@ -72,7 +72,8 @@ SPOTIFY_CLIENT_ID=your_spotify_client_id
 SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 SPOTIFY_REDIRECT_URI=your_redirect_uri
 
-GTAF_ARTIFACT_DIR=/app/gtaf_artifacts
+GTAF_DRC_PATH=/app/gtaf_artifacts/drc.json
+GTAF_ARTIFACTS_DIR=/app/gtaf_artifacts
 GTAF_SCOPE=local:rachel
 GTAF_COMPONENT=chat-service
 GTAF_INTERFACE=tool-calls
@@ -82,10 +83,15 @@ Secrets stay out of Git (`.env` is ignored).
 
 ### GTAF artifacts
 Place evaluated GTAF artifacts in `gtaf_artifacts/`:
-- `SB-LOCAL-RACHEL.yaml`
-- `DR-COMMAND-EXEC.yaml`
-- `RB-TIM-LOCAL.yaml`
-- `DRC-LOCAL-RACHEL.yaml`
+- `drc.json`
+- `sb/SB-LOCAL-RACHEL.json`
+- `dr/DR-COMMAND-EXEC.json`
+- `rb/RB-TIM-LOCAL.json`
+
+Rules:
+- JSON only (no YAML)
+- SDK loader resolves artifacts by category from `sb/`, `dr/`, `rb/`
+- artifact filenames must be `<artifact_id>.json`
 
 If artifacts are missing/invalid, tool execution is denied (fail-safe).
 
@@ -93,18 +99,24 @@ If artifacts are missing/invalid, tool execution is denied (fail-safe).
 Tool calls are intercepted in `ChatService` before any executor runs:
 
 ```text
-User Prompt -> LLM Tool Call -> GTAF enforce() -> EXECUTE | DENY -> Executor / Refusal
+User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY -> Executor / Refusal
 ```
 
 - Executors stay unchanged.
 - Enforcement is centralized and deterministic.
-- `DENY` returns a deterministic `reason_code` (e.g. `DR_MISMATCH`).
+- `DENY` returns deterministic runtime reason codes.
+- Pre-enforcement loader/input failures return `SDK_*` reason codes.
 
 Action mapping (for policy matching):
-- `execute_command` -> `execute_command:<category>`
-- current categories: `process_info`, `filesystem_read`, `filesystem_write`, `network`,
-  `system_control`, `unknown`
-- unknown actions are safely denied if no matching DR decision exists.
+- Canonical IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
+- Rachel only defines deterministic `tool_name -> prefix` wiring.
+- For command-style tools, SDK normalization uses the first command token
+  (`<prefix>.<first-token>`).
+- Examples:
+  - `execute_command` with `{\"command\":\"date\"}` -> `execute_command.date`
+  - `execute_command` with `{\"command\":\"rm test.txt\"}` -> `execute_command.rm`
+  - `weather_operations` with no command-arg -> `weather_operations`
+  - unmapped tool -> `__unknown__`
 
 Quick local validation:
 1. Start app:
@@ -113,10 +125,10 @@ Quick local validation:
    ```
 2. Allowed example:
    - Prompt: `Wie spät ist es?`
-   - Expected: `GTAF EXECUTE: execute_command:process_info`
+   - Expected: `GTAF EXECUTE: execute_command.date`
 3. Denied example:
    - Prompt: `Lösche bitte die Datei test.txt`
-   - Expected: `GTAF DENY: execute_command:filesystem_write reason=DR_MISMATCH`
+   - Expected: `GTAF DENY: execute_command.rm reason=DR_MISMATCH`
    - Expected user-facing response: refusal, action not delegated.
 
 Common GTAF reason codes:
@@ -134,6 +146,12 @@ Common GTAF reason codes:
 | `INVALID_DRC_SCHEMA` | DRC structure is invalid. |
 | `UNSUPPORTED_GTAF_VERSION` | DRC GTAF reference version is unsupported by runtime. |
 | `INTERNAL_ERROR` | Runtime failed internally and denied fail-safe. |
+| `SDK_INVALID_DRC` | SDK failed before runtime: invalid DRC input file. |
+| `SDK_ARTIFACT_NOT_FOUND` | SDK failed before runtime: referenced artifact file missing. |
+| `SDK_INVALID_JSON` | SDK failed before runtime: malformed JSON artifact/DRC file. |
+| `SDK_INVALID_ARTIFACT` | SDK failed before runtime: invalid artifact structure/content. |
+| `SDK_DUPLICATE_ARTIFACT_ID` | SDK failed before runtime: duplicate artifact IDs. |
+| `SDK_LOAD_ERROR` | SDK failed before runtime: generic runtime input load error. |
 
 ---
 
@@ -149,7 +167,9 @@ Common GTAF reason codes:
   ```
 - Volumes: project code and `resources` are mounted; edits are live.
 - Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.2.2 included).
-- Local plugin support: if `gtaf-runtime` exists at `/Users/timullrich/Development/TNT Intelligence/gtaf-runtime`, it is mounted to `/opt/plugins/gtaf-runtime` and installed automatically (`pip install`) on container start.
+- Local plugin support:
+  - `gtaf-runtime` is mounted to `/opt/plugins/gtaf-runtime` and installed first.
+  - `gtaf-sdk-py` is mounted to `/opt/plugins/gtaf-sdk-py` and installed second.
 
 ---
 
