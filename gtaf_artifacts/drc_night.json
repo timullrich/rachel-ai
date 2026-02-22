@@ -1,6 +1,6 @@
 {
-  "id": "DRC-LOCAL-RACHEL",
-  "revision": 3,
+  "id": "DRC-LOCAL-RACHEL-NIGHT",
+  "revision": 1,
   "result": "PERMITTED",
   "gtaf_ref": {
     "version": "0.1"
@@ -14,7 +14,6 @@
       "DR-COMMAND-EXEC",
       "DR-WEATHER-OPS",
       "DR-EMAIL-BASE",
-      "DR-EMAIL-SEND-DAY",
       "DR-CONTACT-OPS",
       "DR-CRYPTO-OPS",
       "DR-SPOTIFY-OPS",

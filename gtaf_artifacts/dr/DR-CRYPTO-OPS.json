@@ -1,0 +1,11 @@
+{
+  "id": "DR-CRYPTO-OPS",
+  "scope": "local:rachel",
+  "valid_from": "2025-01-01T00:00:00Z",
+  "valid_until": "2030-01-01T00:00:00Z",
+  "delegation_mode": "AUTONOMOUS",
+  "decisions": [
+    "crypto_data_operations.ohlc",
+    "crypto_data_operations.market"
+  ]
+}

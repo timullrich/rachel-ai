@@ -1,6 +1,6 @@
 {
-  "id": "DRC-LOCAL-RACHEL",
-  "revision": 3,
+  "id": "DRC-LOCAL-RACHEL-SB-API-ONLY",
+  "revision": 1,
   "result": "PERMITTED",
   "gtaf_ref": {
     "version": "0.1"
@@ -9,7 +9,7 @@
   "valid_from": "2025-01-01T00:00:00Z",
   "valid_until": "2030-01-01T00:00:00Z",
   "refs": {
-    "sb": ["SB-LOCAL-RACHEL"],
+    "sb": ["SB-API-ONLY-RACHEL"],
     "dr": [
       "DR-COMMAND-EXEC",
       "DR-WEATHER-OPS",

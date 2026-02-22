@@ -1,6 +1,6 @@
 {
-  "id": "DRC-LOCAL-RACHEL",
-  "revision": 3,
+  "id": "DRC-LOCAL-RACHEL-RB-MULTI",
+  "revision": 1,
   "result": "PERMITTED",
   "gtaf_ref": {
     "version": "0.1"
@@ -20,6 +20,6 @@
       "DR-SPOTIFY-OPS",
       "DR-WEB-SCRAPING"
     ],
-    "rb": ["RB-TIM-LOCAL"]
+    "rb": ["RB-GUEST-LOCAL", "RB-TIM-LOCAL"]
   }
 }

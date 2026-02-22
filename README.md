@@ -83,15 +83,33 @@ Secrets stay out of Git (`.env` is ignored).
 
 ### GTAF artifacts
 Place evaluated GTAF artifacts in `gtaf_artifacts/`:
-- `drc.json`
+- `drc.json` (default profile)
+- `drc_day.json` (email send allowed)
+- `drc_night.json` (email send denied)
+- `drc_sb_api_only.json` (SB demo: interface mismatch)
+- `drc_rb_guest_only.json` (RB demo: no active RB)
+- `drc_rb_multi.json` (RB demo: mixed active/inactive RB)
 - `sb/SB-LOCAL-RACHEL.json`
+- `sb/SB-API-ONLY-RACHEL.json`
 - `dr/DR-COMMAND-EXEC.json`
+- `dr/DR-WEATHER-OPS.json`
+- `dr/DR-EMAIL-BASE.json`
+- `dr/DR-EMAIL-SEND-DAY.json`
+- `dr/DR-CONTACT-OPS.json`
+- `dr/DR-CRYPTO-OPS.json`
+- `dr/DR-SPOTIFY-OPS.json`
+- `dr/DR-WEB-SCRAPING.json`
 - `rb/RB-TIM-LOCAL.json`
+- `rb/RB-GUEST-LOCAL.json`
 
 Rules:
 - JSON only (no YAML)
 - SDK loader resolves artifacts by category from `sb/`, `dr/`, `rb/`
 - artifact filenames must be `<artifact_id>.json`
+- DRC profiles:
+  - `gtaf_artifacts/drc_day.json`: email send allowed
+  - `gtaf_artifacts/drc_night.json`: email send denied
+  - `gtaf_artifacts/drc.json`: default profile (currently aligned to day)
 
 If artifacts are missing/invalid, tool execution is denied (fail-safe).
 
@@ -110,13 +128,37 @@ User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY 
 Action mapping (for policy matching):
 - Canonical IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
 - Rachel only defines deterministic `tool_name -> prefix` wiring.
-- For command-style tools, SDK normalization uses the first command token
-  (`<prefix>.<first-token>`).
+- For operation-based tools, action IDs are operation-specific:
+  `<tool_name>.<operation>`.
+- `execute_command` is first-token granular via SDK normalization:
+  `execute_command.<first-token>`.
 - Examples:
-  - `execute_command` with `{\"command\":\"date\"}` -> `execute_command.date`
-  - `execute_command` with `{\"command\":\"rm test.txt\"}` -> `execute_command.rm`
-  - `weather_operations` with no command-arg -> `weather_operations`
+  - `execute_command` + `command="date"` -> `execute_command.date`
+  - `execute_command` + `command="rm test.txt"` -> `execute_command.rm`
+  - `weather_operations` + `operation=get_weather` -> `weather_operations.get_weather`
+  - `email_operations` + `operation=delete` -> `email_operations.delete`
   - unmapped tool -> `__unknown__`
+
+What is now governed via GTAF artifacts:
+
+| Domain | Canonical action IDs | Delegation source |
+|---|---|---|
+| Command execution | `execute_command.<first-token>` | `DR-COMMAND-EXEC` |
+| Weather | `weather_operations.get_weather`, `weather_operations.get_forecast` | `DR-WEATHER-OPS` |
+| Email read/manage | `email_operations.list`, `email_operations.get`, `email_operations.delete` | `DR-EMAIL-BASE` |
+| Email send | `email_operations.send` | `DR-EMAIL-SEND-DAY` (day profile only) |
+| Contacts | `contact_operations.list`, `contact_operations.search` | `DR-CONTACT-OPS` |
+| Crypto | `crypto_data_operations.market`, `crypto_data_operations.ohlc` | `DR-CRYPTO-OPS` |
+| Spotify | `spotify_operations.<operation>` (mapped operation set) | `DR-SPOTIFY-OPS` |
+| Web scraping | `generic_web_scraping` | `DR-WEB-SCRAPING` |
+
+Profile behavior:
+- `drc_day.json`: includes `DR-EMAIL-SEND-DAY` (`email_operations.send` allowed)
+- `drc_night.json`: excludes `DR-EMAIL-SEND-DAY` (`email_operations.send` denied)
+- `drc.json`: current default profile (aligned with day)
+- `drc_sb_api_only.json`: swaps to `SB-API-ONLY-RACHEL` (expects `OUTSIDE_SB` with `tool-calls`)
+- `drc_rb_guest_only.json`: only inactive RB (`RB_REQUIRED`)
+- `drc_rb_multi.json`: inactive + active RB (allowed if decision matches)
 
 Quick local validation:
 1. Start app:
@@ -126,10 +168,38 @@ Quick local validation:
 2. Allowed example:
    - Prompt: `Wie spät ist es?`
    - Expected: `GTAF EXECUTE: execute_command.date`
-3. Denied example:
+3. Policy denied example:
    - Prompt: `Lösche bitte die Datei test.txt`
    - Expected: `GTAF DENY: execute_command.rm reason=DR_MISMATCH`
    - Expected user-facing response: refusal, action not delegated.
+4. Fail-safe denied example:
+   - Temporarily remove one referenced artifact file (for example in `gtaf_artifacts/dr/`)
+   - Prompt: `Wie spät ist es?`
+   - Expected: `GTAF DENY ... reason=SDK_ARTIFACT_NOT_FOUND`
+   - Expected user-facing response: refusal, action denied by governance.
+5. Day/night email policy example:
+   - Day profile:
+     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_day.json app python main.py --silent`
+     - Prompt: `Sende eine E-Mail an max@example.com mit Betreff Test und Inhalt Hallo`
+     - Expected: `GTAF EXECUTE: email_operations.send`
+   - Night profile:
+     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_night.json app python main.py --silent`
+     - Same prompt
+     - Expected: `GTAF DENY: email_operations.send reason=DR_MISMATCH`
+6. Multi-SB demo:
+   - Start with SB API-only profile:
+     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_sb_api_only.json app python main.py --silent`
+   - Prompt: `Wie spät ist es?`
+   - Expected: `GTAF DENY ... reason=OUTSIDE_SB`
+7. Multi-RB demo:
+   - Guest-only RB profile:
+     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_guest_only.json app python main.py --silent`
+     - Prompt: `Wie spät ist es?`
+     - Expected: `GTAF DENY ... reason=RB_REQUIRED`
+   - Multi-RB profile (guest + tim):
+     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_multi.json app python main.py --silent`
+     - Prompt: `Wie spät ist es?`
+     - Expected: `GTAF EXECUTE: execute_command.date`
 
 Common GTAF reason codes:
 

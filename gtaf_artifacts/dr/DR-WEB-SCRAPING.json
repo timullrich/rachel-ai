@@ -1,0 +1,10 @@
+{
+  "id": "DR-WEB-SCRAPING",
+  "scope": "local:rachel",
+  "valid_from": "2025-01-01T00:00:00Z",
+  "valid_until": "2030-01-01T00:00:00Z",
+  "delegation_mode": "AUTONOMOUS",
+  "decisions": [
+    "generic_web_scraping"
+  ]
+}

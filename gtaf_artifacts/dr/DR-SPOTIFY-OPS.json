@@ -1,0 +1,28 @@
+{
+  "id": "DR-SPOTIFY-OPS",
+  "scope": "local:rachel",
+  "valid_from": "2025-01-01T00:00:00Z",
+  "valid_until": "2030-01-01T00:00:00Z",
+  "delegation_mode": "AUTONOMOUS",
+  "decisions": [
+    "spotify_operations.get_user_playlists",
+    "spotify_operations.search_track",
+    "spotify_operations.get_track_details",
+    "spotify_operations.get_liked_songs",
+    "spotify_operations.play_track",
+    "spotify_operations.get_available_devices",
+    "spotify_operations.pause_playback",
+    "spotify_operations.skip_to_next_track",
+    "spotify_operations.get_current_playback_info",
+    "spotify_operations.add_track_to_queue",
+    "spotify_operations.add_tracks_to_queue",
+    "spotify_operations.set_volume",
+    "spotify_operations.play_playlist",
+    "spotify_operations.get_similar_tracks",
+    "spotify_operations.get_album_details",
+    "spotify_operations.get_multiple_albums",
+    "spotify_operations.get_playlist",
+    "spotify_operations.create_playlist",
+    "spotify_operations.add_tracks_to_playlist"
+  ]
+}
