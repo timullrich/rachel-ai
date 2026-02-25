@@ -24,7 +24,10 @@ Modular voice/text assistant with executors for email, weather, Spotify, crypto,
 |-----------|------|----------|
 | Executors | Domain logic | `WeatherExecutor`, `EmailExecutor`, `WebScraperExecutor`, `CryptoDataExecutor`, `SpotifyExecutor` |
 | Connectors | API access | `OpenAiConnector`, `CoinGeckoConnector`, `SpotifyConnector`, `ImapConnector`, `SmtpConnector`, `OpenWeatherMapConnector` |
+| GTAF Gate | Deterministic enforcement before tool execution | `gtaf_sdk.enforcement.enforce_from_files`, `gtaf_sdk.validation.warmup_from_files` |
 | Entry | Start point | `main.py` (voice/silent) |
+
+Execution path: `User Prompt -> LLM Tool Call -> GTAF Gate -> EXECUTE | DENY -> Executor`.
 
 ---
 
@@ -89,7 +92,8 @@ GTAF_SYSTEM=rachel-local-agent
 ```
 Secrets stay out of Git (`.env` is ignored).
 
-### GTAF artifacts
+## 🛡️ GTAF Governance
+### Artifacts
 Place evaluated GTAF artifacts in `gtaf_artifacts/`:
 - `drc.json` (default profile)
 - `drc_day.json` (email send allowed)
@@ -111,60 +115,56 @@ Place evaluated GTAF artifacts in `gtaf_artifacts/`:
 - `rb/RB-GUEST-LOCAL.json`
 
 Rules:
-- JSON only (no YAML)
-- SDK loader resolves artifacts by category from `sb/`, `dr/`, `rb/`
-- artifact filenames must be `<artifact_id>.json`
-- DRC profiles:
-  - `gtaf_artifacts/drc_day.json`: email send allowed
-  - `gtaf_artifacts/drc_night.json`: email send denied
-  - `gtaf_artifacts/drc.json`: default profile (currently aligned to day)
+- JSON only (no YAML).
+- SDK loader resolves artifacts by category from `sb/`, `dr/`, `rb/`.
+- Artifact filenames must be `<artifact_id>.json`.
+- If artifacts are missing/invalid, tool execution is denied (fail-safe).
 
-If artifacts are missing/invalid, tool execution is denied (fail-safe).
-
-### GTAF runtime enforcement
-Tool calls are intercepted in `ChatService` before any executor runs:
-
-```text
-User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY -> Executor / Refusal
-```
+### Enforcement Model
+Tool calls are intercepted in `ChatService` before any executor runs.
 
 ```text
 Without GTAF: User Prompt -> LLM Tool Call -> Executor
-With GTAF:    User Prompt -> LLM Tool Call -> GTAF Gate -> EXECUTE | DENY -> Executor / Refusal
+With GTAF:    User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY -> Executor / Refusal
 ```
 
+Properties:
 - Executors stay unchanged.
 - Enforcement is centralized and deterministic.
-- `DENY` returns deterministic runtime reason codes.
+- Runtime denials return deterministic reason codes.
 - Pre-enforcement loader/input failures return `SDK_*` reason codes.
 
-Why use `gtaf-sdk` instead of direct `gtaf-runtime` wiring:
-- One stable integration surface for file-based loading, warmup, and enforcement wiring.
-- Deterministic SDK pre-runtime deny behavior (`SDK_*`) for invalid/missing runtime inputs.
-- Less project-specific glue code (lower drift risk between projects).
-- Runtime semantics remain authoritative in `gtaf-runtime`; the SDK is helper-layer only.
+Why SDK (instead of direct runtime wiring):
+- One stable integration surface for loading, warmup, and enforcement.
+- Lower project-specific glue-code drift.
+- Runtime semantics remain authoritative in `gtaf-runtime`.
 
-What GTAF/SDK does not do in this project:
-- No policy authoring or policy evaluation workflow.
-- No risk scoring/classification layer.
-- No heuristic/regex blocker logic.
-- No executor-side business logic changes.
+Further reading:
+- `gtaf-sdk` on PyPI: [https://pypi.org/project/gtaf-sdk/](https://pypi.org/project/gtaf-sdk/)
+- `gtaf-sdk-py` repository: [https://github.com/TNT-Intelligence/gtaf-sdk-py](https://github.com/TNT-Intelligence/gtaf-sdk-py)
+- GTAF reference docs: [https://gtaf.tnt-intelligence.com/reference](https://gtaf.tnt-intelligence.com/reference)
 
-Action mapping (for policy matching):
-- Canonical IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
-- Rachel only defines deterministic `tool_name -> prefix` wiring.
-- For operation-based tools, action IDs are operation-specific:
-  `<tool_name>.<operation>`.
-- `execute_command` is first-token granular via SDK normalization:
-  `execute_command.<first-token>`.
-- Examples:
-  - `execute_command` + `command="date"` -> `execute_command.date`
-  - `execute_command` + `command="rm test.txt"` -> `execute_command.rm`
-  - `weather_operations` + `operation=get_weather` -> `weather_operations.get_weather`
-  - `email_operations` + `operation=delete` -> `email_operations.delete`
-  - unmapped tool -> `__unknown__`
+What this integration does not do:
+- No policy authoring/evaluation workflow.
+- No risk scoring or classification.
+- No heuristic/regex blocking layer.
+- No executor business-logic changes.
 
-What is now governed via GTAF artifacts:
+### Action IDs and Delegation
+Canonical action IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
+
+Conventions:
+- Operation-based tools: `<tool_name>.<operation>`.
+- Command executor: `execute_command.<first-token>`.
+- Unmapped tools: `__unknown__`.
+
+Examples:
+- `execute_command` + `command="date"` -> `execute_command.date`
+- `execute_command` + `command="rm test.txt"` -> `execute_command.rm`
+- `weather_operations` + `operation=get_weather` -> `weather_operations.get_weather`
+- `email_operations` + `operation=delete` -> `email_operations.delete`
+
+Delegated domains:
 
 | Domain | Canonical action IDs | Delegation source |
 |---|---|---|
@@ -177,64 +177,70 @@ What is now governed via GTAF artifacts:
 | Spotify | `spotify_operations.<operation>` (mapped operation set) | `DR-SPOTIFY-OPS` |
 | Web scraping | `generic_web_scraping` | `DR-WEB-SCRAPING` |
 
-Profile behavior:
-- `drc_day.json`: includes `DR-EMAIL-SEND-DAY` (`email_operations.send` allowed)
-- `drc_night.json`: excludes `DR-EMAIL-SEND-DAY` (`email_operations.send` denied)
-- `drc.json`: current default profile (aligned with day)
-- `drc_sb_api_only.json`: swaps to `SB-API-ONLY-RACHEL` (expects `OUTSIDE_SB` with `tool-calls`)
-- `drc_rb_guest_only.json`: only inactive RB (`RB_REQUIRED`)
-- `drc_rb_multi.json`: inactive + active RB (allowed if decision matches)
+### Profiles
+- `drc.json`: default profile (currently aligned with day).
+- `drc_day.json`: includes `DR-EMAIL-SEND-DAY` (`email_operations.send` allowed).
+- `drc_night.json`: excludes `DR-EMAIL-SEND-DAY` (`email_operations.send` denied).
+- `drc_sb_api_only.json`: uses `SB-API-ONLY-RACHEL` (expect `OUTSIDE_SB` with `tool-calls`).
+- `drc_rb_guest_only.json`: only inactive RB (expect `RB_REQUIRED`).
+- `drc_rb_multi.json`: inactive + active RB (allow if decision matches).
 
-Upgrade policy (recommended):
-1. Keep both packages explicitly pinned in `requirements.txt`:
-   - `gtaf-runtime==0.1.0`
-   - `gtaf-sdk==0.1.0`
-2. For upgrades, bump in a dedicated PR and run the full GTAF validation matrix below.
-3. Treat any change in enforcement outcome, reason code, or action normalization output as a breaking integration signal.
-4. Only relax pins after explicit compatibility verification in CI and manual smoke tests.
+### Governance Operations
+Upgrade policy:
+1. Keep both packages pinned in `requirements.txt`: `gtaf-runtime==0.1.0`, `gtaf-sdk==0.1.0`.
+2. Upgrade in a dedicated PR and run the GTAF validation matrix.
+3. Treat changed enforcement outcome, reason code, or normalization output as breaking signal.
+4. Relax pins only after explicit CI and manual verification.
 
-Quick local validation:
+Lifecycle:
+1. Define canonical action IDs.
+2. Encode delegation intent in `DRC -> SB/DR/RB` with explicit IDs and validity windows.
+3. Review artifact diffs for responsibility and decision-scope changes.
+4. Validate all profiles via `warmup_from_files(...)`.
+5. Enforce at runtime via `enforce_from_files(...)`.
+6. Audit via deterministic `outcome`, `reason_code`, and `refs`.
+
+Artifact diff review checklist:
+- Scope/boundary: validate `scope`, `included_components`, `allowed_interfaces`.
+- Decisions: verify added/removed action IDs in DR files.
+- Refs: verify DRC refs resolve to real artifact IDs/files.
+- Validity windows: verify coherent `valid_from` and `valid_until` across artifacts.
+- Runtime impact: verify expected `(profile, action)` outcome changes are tested.
+
+### Quick Validation
 1. Start app:
    ```bash
    docker compose run --rm app python main.py --silent
    ```
-2. Allowed example:
+2. Allow case:
    - Prompt: `Wie spät ist es?`
    - Expected: `GTAF EXECUTE: execute_command.date`
-3. Policy denied example:
+3. Policy deny case:
    - Prompt: `Lösche bitte die Datei test.txt`
    - Expected: `GTAF DENY: execute_command.rm reason=DR_MISMATCH`
-   - Expected user-facing response: refusal, action not delegated.
-4. Fail-safe denied example:
-   - Temporarily remove one referenced artifact file (for example in `gtaf_artifacts/dr/`)
+4. Fail-safe case:
+   - Remove one referenced artifact file in `gtaf_artifacts/dr/`.
    - Prompt: `Wie spät ist es?`
    - Expected: `GTAF DENY ... reason=SDK_ARTIFACT_NOT_FOUND`
-   - Expected user-facing response: refusal, action denied by governance.
-5. Day/night email policy example:
-   - Day profile:
-     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_day.json app python main.py --silent`
-     - Prompt: `Sende eine E-Mail an max@example.com mit Betreff Test und Inhalt Hallo`
-     - Expected: `GTAF EXECUTE: email_operations.send`
-   - Night profile:
-     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_night.json app python main.py --silent`
-     - Same prompt
-     - Expected: `GTAF DENY: email_operations.send reason=DR_MISMATCH`
-6. Multi-SB demo:
-   - Start with SB API-only profile:
-     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_sb_api_only.json app python main.py --silent`
+5. Day profile:
+   - Command: `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_day.json app python main.py --silent`
+   - Prompt: `Sende eine E-Mail an max@example.com mit Betreff Test und Inhalt Hallo`
+   - Expected: `GTAF EXECUTE: email_operations.send`
+6. Night profile:
+   - Command: `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_night.json app python main.py --silent`
+   - Same prompt as above.
+   - Expected: `GTAF DENY: email_operations.send reason=DR_MISMATCH`
+7. SB profile:
+   - Command: `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_sb_api_only.json app python main.py --silent`
    - Prompt: `Wie spät ist es?`
    - Expected: `GTAF DENY ... reason=OUTSIDE_SB`
-7. Multi-RB demo:
-   - Guest-only RB profile:
-     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_guest_only.json app python main.py --silent`
-     - Prompt: `Wie spät ist es?`
-     - Expected: `GTAF DENY ... reason=RB_REQUIRED`
-   - Multi-RB profile (guest + tim):
-     `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_multi.json app python main.py --silent`
-     - Prompt: `Wie spät ist es?`
-     - Expected: `GTAF EXECUTE: execute_command.date`
+8. RB profiles:
+   - Guest-only command: `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_guest_only.json app python main.py --silent`
+   - Prompt: `Wie spät ist es?` -> `GTAF DENY ... reason=RB_REQUIRED`
+   - Multi-RB command: `docker compose run --rm -e GTAF_DRC_PATH=/app/gtaf_artifacts/drc_rb_multi.json app python main.py --silent`
+   - Prompt: `Wie spät ist es?` -> `GTAF EXECUTE: execute_command.date`
 
-Common GTAF reason codes:
+### Common Reason Codes
 
 | Reason code | Meaning |
 |---|---|
