@@ -250,7 +250,7 @@ Common GTAF reason codes:
   python main.py --silent  # or python main.py
   ```
 - Volumes: project code and `resources` are mounted; edits are live.
-- Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.2.2 included).
+- Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.8.0 included).
 - GTAF dependencies are consumed from PyPI via `requirements.txt`:
   - `gtaf-runtime==0.1.0`
   - `gtaf-sdk==0.1.0`
@@ -264,9 +264,9 @@ Common GTAF reason codes:
   pip install <pkg>
   pip freeze | grep <pkg> >> requirements.txt   # or edit file to pin version
   ```
-- Torch already pinned (`torch==2.2.2` via CPU index). If install fails:  
+- Torch already pinned (`torch==2.8.0` via CPU index). If install fails:  
   ```bash
-  pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+  pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
   ```
 - Rebuild after dependency changes: `docker compose build app`.
 
