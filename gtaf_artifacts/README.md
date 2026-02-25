@@ -4,7 +4,7 @@ Expected files:
 - drc.json
 - sb/SB-LOCAL-RACHEL.json
 - dr/DR-COMMAND-EXEC.json
-- rb/RB-TIM-LOCAL.json
+- rb/RB-USER-LOCAL.json
 
 Layout notes:
 - JSON only (no YAML)

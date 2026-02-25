@@ -34,7 +34,7 @@ def _create_valid_artifacts(base_dir: Path) -> tuple[str, str]:
         "decisions": ["execute_command.date"],
     }
     rb = {
-        "id": "RB-TIM-LOCAL",
+        "id": "RB-USER-LOCAL",
         "scope": "local:rachel",
         "valid_from": "2025-01-01T00:00:00Z",
         "valid_until": "2030-01-01T00:00:00Z",
@@ -51,13 +51,13 @@ def _create_valid_artifacts(base_dir: Path) -> tuple[str, str]:
         "refs": {
             "sb": ["SB-LOCAL-RACHEL"],
             "dr": ["DR-COMMAND-EXEC"],
-            "rb": ["RB-TIM-LOCAL"],
+            "rb": ["RB-USER-LOCAL"],
         },
     }
 
     _write_json(base_dir / "sb" / "SB-LOCAL-RACHEL.json", sb)
     _write_json(base_dir / "dr" / "DR-COMMAND-EXEC.json", dr)
-    _write_json(base_dir / "rb" / "RB-TIM-LOCAL.json", rb)
+    _write_json(base_dir / "rb" / "RB-USER-LOCAL.json", rb)
     _write_json(drc_path, drc)
 
     return str(drc_path), str(base_dir)

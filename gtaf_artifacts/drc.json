@@ -20,6 +20,6 @@
       "DR-SPOTIFY-OPS",
       "DR-WEB-SCRAPING"
     ],
-    "rb": ["RB-TIM-LOCAL"]
+    "rb": ["RB-USER-LOCAL"]
   }
 }

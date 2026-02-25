@@ -99,7 +99,7 @@ Place evaluated GTAF artifacts in `gtaf_artifacts/`:
 - `dr/DR-CRYPTO-OPS.json`
 - `dr/DR-SPOTIFY-OPS.json`
 - `dr/DR-WEB-SCRAPING.json`
-- `rb/RB-TIM-LOCAL.json`
+- `rb/RB-USER-LOCAL.json`
 - `rb/RB-GUEST-LOCAL.json`
 
 Rules:

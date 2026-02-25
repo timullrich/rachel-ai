@@ -40,9 +40,9 @@ def _build_fixture(base_dir: Path) -> tuple[str, str]:
         },
     )
     _write_json(
-        base_dir / "rb" / "RB-TIM-LOCAL.json",
+        base_dir / "rb" / "RB-USER-LOCAL.json",
         {
-            "id": "RB-TIM-LOCAL",
+            "id": "RB-USER-LOCAL",
             "scope": "local:rachel",
             "valid_from": "2025-01-01T00:00:00Z",
             "valid_until": "2030-01-01T00:00:00Z",
@@ -62,7 +62,7 @@ def _build_fixture(base_dir: Path) -> tuple[str, str]:
             "refs": {
                 "sb": ["SB-LOCAL-RACHEL"],
                 "dr": ["DR-COMMAND-EXEC"],
-                "rb": ["RB-TIM-LOCAL"],
+                "rb": ["RB-USER-LOCAL"],
             },
         },
     )
