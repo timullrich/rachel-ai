@@ -125,6 +125,12 @@ User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY 
 - `DENY` returns deterministic runtime reason codes.
 - Pre-enforcement loader/input failures return `SDK_*` reason codes.
 
+Why use `gtaf-sdk` instead of direct `gtaf-runtime` wiring:
+- One stable integration surface for file-based loading, warmup, and enforcement wiring.
+- Deterministic SDK pre-runtime deny behavior (`SDK_*`) for invalid/missing runtime inputs.
+- Less project-specific glue code (lower drift risk between projects).
+- Runtime semantics remain authoritative in `gtaf-runtime`; the SDK is helper-layer only.
+
 Action mapping (for policy matching):
 - Canonical IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
 - Rachel only defines deterministic `tool_name -> prefix` wiring.
@@ -159,6 +165,14 @@ Profile behavior:
 - `drc_sb_api_only.json`: swaps to `SB-API-ONLY-RACHEL` (expects `OUTSIDE_SB` with `tool-calls`)
 - `drc_rb_guest_only.json`: only inactive RB (`RB_REQUIRED`)
 - `drc_rb_multi.json`: inactive + active RB (allowed if decision matches)
+
+Upgrade policy (recommended):
+1. Keep both packages explicitly pinned in `requirements.txt`:
+   - `gtaf-runtime==0.1.0`
+   - `gtaf-sdk==0.1.0`
+2. For upgrades, bump in a dedicated PR and run the full GTAF validation matrix below.
+3. Treat any change in enforcement outcome, reason code, or action normalization output as a breaking integration signal.
+4. Only relax pins after explicit compatibility verification in CI and manual smoke tests.
 
 Quick local validation:
 1. Start app:
@@ -263,6 +277,15 @@ Common GTAF reason codes:
   ```bash
   docker compose run --rm app python -m unittest discover -s tests -p 'test_*.py' -v
   ```
+- CI minimum matrix for GTAF (best-practice):
+  - Structural validation:
+    - `warmup_from_files(...)` succeeds for all `gtaf_artifacts/drc*.json`.
+  - Enforcement determinism:
+    - allow sample: `execute_command.date -> EXECUTE`
+    - policy deny sample: `execute_command.rm -> DENY (DR_MISMATCH)`
+    - fail-safe sample: missing artifact -> `DENY (SDK_ARTIFACT_NOT_FOUND)`
+    - boundary sample: `drc_sb_api_only.json` with `tool-calls` -> `DENY (OUTSIDE_SB)`
+    - role sample: `drc_rb_guest_only.json` -> `DENY (RB_REQUIRED)`
 - Common issues:
   - API keys: verify `.env`; wrong SMTP/IMAP creds cause mail failures.
   - Audio/PortAudio: bundled in image; if running outside Docker, install system packages.
