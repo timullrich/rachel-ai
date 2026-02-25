@@ -9,6 +9,14 @@ Modular voice/text assistant with executors for email, weather, Spotify, crypto,
 - 🎛️ Modes: voice (audio I/O) and silent (text only)
 - 🐳 Docker-only workflow; no host Python setup required
 
+## 🛡️ Why GTAF Here
+- Hard execution gate: tool calls are executed only after deterministic GTAF enforcement.
+- Default-deny behavior: missing or invalid runtime inputs fail closed.
+- Explainable decisions: denials include reason codes and referenced artifacts.
+- Artifact-driven policy switching: behavior can change via DRC/SB/DR/RB profiles without code changes.
+- Reduced prompt-risk surface: prompt or model hallucinations cannot bypass enforcement.
+- Separation of concerns: executor logic stays unchanged; governance is centralized.
+
 ---
 
 ## 🧭 Architecture (short)
@@ -120,6 +128,11 @@ Tool calls are intercepted in `ChatService` before any executor runs:
 User Prompt -> LLM Tool Call -> gtaf_sdk.enforce_from_files() -> EXECUTE | DENY -> Executor / Refusal
 ```
 
+```text
+Without GTAF: User Prompt -> LLM Tool Call -> Executor
+With GTAF:    User Prompt -> LLM Tool Call -> GTAF Gate -> EXECUTE | DENY -> Executor / Refusal
+```
+
 - Executors stay unchanged.
 - Enforcement is centralized and deterministic.
 - `DENY` returns deterministic runtime reason codes.
@@ -130,6 +143,12 @@ Why use `gtaf-sdk` instead of direct `gtaf-runtime` wiring:
 - Deterministic SDK pre-runtime deny behavior (`SDK_*`) for invalid/missing runtime inputs.
 - Less project-specific glue code (lower drift risk between projects).
 - Runtime semantics remain authoritative in `gtaf-runtime`; the SDK is helper-layer only.
+
+What GTAF/SDK does not do in this project:
+- No policy authoring or policy evaluation workflow.
+- No risk scoring/classification layer.
+- No heuristic/regex blocker logic.
+- No executor-side business logic changes.
 
 Action mapping (for policy matching):
 - Canonical IDs are generated via `gtaf_sdk.actions.normalize_action(...)`.
