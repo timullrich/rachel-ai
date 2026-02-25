@@ -237,9 +237,9 @@ Common GTAF reason codes:
   ```
 - Volumes: project code and `resources` are mounted; edits are live.
 - Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.2.2 included).
-- Local plugin support:
-  - `gtaf-runtime` is mounted to `/opt/plugins/gtaf-runtime` and installed first.
-  - `gtaf-sdk-py` is mounted to `/opt/plugins/gtaf-sdk-py` and installed second.
+- GTAF dependencies are consumed from PyPI via `requirements.txt`:
+  - `gtaf-runtime==0.1.0`
+  - `gtaf-sdk==0.1.0`
 
 ---
 

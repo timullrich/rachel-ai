@@ -17,3 +17,5 @@ pyowm==3.3.0
 bs4==0.0.2
 pycoingecko==3.1.0
 spotipy==2.24.0
+gtaf-runtime==0.1.0
+gtaf-sdk==0.1.0
