@@ -105,6 +105,52 @@ class TestSdkIntegration(unittest.TestCase):
             self.assertEqual("DENY", missing.outcome)
             self.assertEqual("SDK_ARTIFACT_NOT_FOUND", missing.reason_code)
 
+    def test_fail_safe_for_invalid_json_and_invalid_drc(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base_dir = Path(tmpdir)
+            drc_path, artifacts_dir = _build_fixture(base_dir)
+            context = {
+                "scope": "local:rachel",
+                "component": "chat-service",
+                "interface": "tool-calls",
+                "action": "execute_command.date",
+            }
+
+            # Malformed artifact JSON must fail-safe deny with SDK_INVALID_JSON.
+            (base_dir / "dr" / "DR-COMMAND-EXEC.json").write_text(
+                "{not-valid-json", encoding="utf-8"
+            )
+            invalid_artifact = enforce_from_files(
+                drc_path=drc_path,
+                artifacts_dir=artifacts_dir,
+                context=context,
+                reload=True,
+            )
+            self.assertEqual("DENY", invalid_artifact.outcome)
+            self.assertEqual("SDK_INVALID_JSON", invalid_artifact.reason_code)
+
+            # Invalid DRC structure must fail-safe deny with SDK_INVALID_DRC.
+            _write_json(
+                base_dir / "drc.json",
+                {
+                    "id": "DRC-INVALID",
+                    "scope": "local:rachel",
+                    "refs": {
+                        "sb": "SB-LOCAL-RACHEL",  # intentionally invalid: must be list
+                        "dr": ["DR-COMMAND-EXEC"],
+                        "rb": ["RB-USER-LOCAL"],
+                    },
+                },
+            )
+            invalid_drc = enforce_from_files(
+                drc_path=drc_path,
+                artifacts_dir=artifacts_dir,
+                context=context,
+                reload=True,
+            )
+            self.assertEqual("DENY", invalid_drc.outcome)
+            self.assertEqual("SDK_INVALID_DRC", invalid_drc.reason_code)
+
 
 if __name__ == "__main__":
     unittest.main()
