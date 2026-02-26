@@ -187,7 +187,7 @@ Delegated domains:
 
 ### Governance Operations
 Upgrade policy:
-1. Keep both packages pinned in `requirements.txt`: `gtaf-runtime==0.1.0`, `gtaf-sdk==0.1.0`.
+1. Keep both packages pinned in `requirements.txt`: `gtaf-runtime==0.1.1`, `gtaf-sdk==0.1.1`.
 2. Upgrade in a dedicated PR and run the GTAF validation matrix.
 3. Treat changed enforcement outcome, reason code, or normalization output as breaking signal.
 4. Relax pins only after explicit CI and manual verification.
@@ -277,8 +277,8 @@ Artifact diff review checklist:
 - Volumes: project code and `resources` are mounted; edits are live.
 - Base image: `python:3.12-slim` with PortAudio + FFmpeg; Python deps from `requirements.txt` (Torch CPU 2.8.0 included).
 - GTAF dependencies are consumed from PyPI via `requirements.txt`:
-  - `gtaf-runtime==0.1.0`
-  - `gtaf-sdk==0.1.0`
+  - `gtaf-runtime==0.1.1`
+  - `gtaf-sdk==0.1.1`
 
 ---
 
