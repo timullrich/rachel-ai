@@ -16,6 +16,6 @@ imapclient==3.0.1
 pyowm==3.3.0
 bs4==0.0.2
 pycoingecko==3.1.0
-spotipy==2.25.1
+spotipy==2.25.2
 gtaf-runtime==0.1.1
 gtaf-sdk==0.1.1
